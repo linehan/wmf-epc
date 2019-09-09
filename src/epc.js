@@ -32,163 +32,6 @@
  *     Mikhail Popov <mpopov@wikimedia.org>
  */
 
-/******************************************************************************
- * MOCKS 
- ******************************************************************************/
-function MOCK_STREAM_CONFIG()
-{
-        return {
-                "edit": {
-                        "stream": "edit",
-                        "scope": "session",
-                        "sample": 0.06,
-                        "start_states": ["editAttemptStart"],
-                        "final_states": ["editAttemptSuccess", "editAttemptFailure"],
-                        "url": "/log",
-                },
-                "edit.firstday": {
-                        /* 
-                         * TODO: 
-                         * Should the sub-stream have its own activity ID?
-                         * Or not? 
-                         *
-                         * Probably not.
-                         *
-                         * If it does not, then we should really do cascading
-                         * the way MP mentioned. That way the scope and stream
-                         * name are the same as with 'edit'. 
-                         *
-                         * But 'stream' is used for table routing. Then we will
-                         * need some other way to point. Okay.
-                         */
-                        "stream": "edit.firstday",
-                        "scope": "session",
-                        "sample": 1.0,
-                        "filter": {
-                                "conf_value": ["wiki_first_day"],
-                        },
-                        "url": "/log",
-                "click": {
-                        "stream": "click",
-                        "sample": 0.01,
-                        /* 
-                         * An example of a predicate filter with fields
-                         * we could support.
-                         */
-                        "filter": {
-                                "user_status": ["login", "anon"]
-                                "user_agent": ["firefox", "chrome", "safari"],
-                                "wiki_lang": ["en", "cz", "jp"],
-                                "localtime":["start_time", "end_time"],
-                                /* 
-                                 * A boolean value we can set in their user
-                                 * settings and test for; to allow tagging of
-                                 * cohorts and a kind of 'catch all' route for 
-                                 * predicates we don't yet, or can never, 
-                                 * support in the client. 
-                                 */
-                                "conf_value": ["wiki_first_day"],
-                        },
-                        "url": "/log",
-                }
-        };
-}
-
-function MOCK_ISO_8601_TIMESTAMP()
-{
-        return "1997";
-}
-
-function MOCK_WIKI_DOMAIN()
-{
-        return "en";
-}
-
-function MOCK_WIKI_URI()
-{
-        return "enwiki.myrandomthing.org";
-}
-
-function MOCK_GLOBAL_IS_COLLECTION_ENABLED();
-{
-        return true;
-}
-
-function MOCK_GEN_UUID_V4()
-{
-        return "ffffffff-ffff-ffff-ffff-ffffffffffff";
-}
-
-function MAKE_STREAM_CASCADE(streams)
-{
-        /* 
-         * NOTE that in production code of mw.track, they are
-         * not being so semantic about the '.', they are simply
-         * checking for whether it is a prefix of anything else
-         * at all:
-         * 
-         * for (var x in streams) {
-         *      for (var y in streams) {
-         *              if (y.indexOf(x) === 0) {
-         *                      if (!(x in cascade)) { 
-         *                              cascade[x] = [];
-         *                      }
-         *                      cascade[x].append(y);
-         *              }
-         *      }
-         * }
-         *
-         * We may consider wanting to do this since it is easier.
-         */
-        var cascade = {};
-
-        for (var x in streams) {
-                var s = x+'.';
-                var m = '.'+x+'.';
-                for (var y in streams) {
-                        if (y.indexOf(s) === 0 || y.indexOf(m) !== -1) {
-                                if (!(x in cascade)) { 
-                                        cascade[x] = [];
-                                }
-                                cascade[x].append(y);
-                        }
-                }
-        }
-        return cascade;
-}
-
-function generate_80_random_bits_as_hex_string()
-{
-        /* Support: IE 11 */
-        var crypto = window.crypto || window.msCrypto;
-
-        if ( crypto && crypto.getRandomValues && typeof Uint16Array === 'function' ) {
-                /* 
-                 * Fill an array with 5 random values, 
-                 * each of which is 16 bits.
-                 * 
-                 * Note that Uint16Array is array-like, 
-                 * but does not implement Array.
-                 */
-                var rnds = new Uint16Array( 5 );
-                crypto.getRandomValues( rnds );
-        } else {
-                var rnds = new Array( 5 );
-                /* 
-                 * 0x10000 is 2^16 so the operation below will return 
-                 * a number between 2^16 and zero
-                 */
-                for ( var i = 0; i < 5; i++ ) {
-                        rnds[ i ] = Math.floor( Math.random() * 0x10000 );
-                }
-        }
-
-        return  ( rnds[ 0 ] + 0x10000 ).toString( 16 ).slice( 1 ) +
-                ( rnds[ 1 ] + 0x10000 ).toString( 16 ).slice( 1 ) +
-                ( rnds[ 2 ] + 0x10000 ).toString( 16 ).slice( 1 ) +
-                ( rnds[ 3 ] + 0x10000 ).toString( 16 ).slice( 1 ) +
-                ( rnds[ 4 ] + 0x10000 ).toString( 16 ).slice( 1 );
-}
 
 /******************************************************************************
  * Output 
@@ -212,7 +55,7 @@ function generate_80_random_bits_as_hex_string()
  ******************************************************************************/
 var Output = (function() 
 {
-        var WAIT_ITEMS = 1;
+        var WAIT_ITEMS = 2;
         var WAIT_MS = 2000;
 
         var QUEUE   = [];
@@ -252,7 +95,7 @@ var Output = (function()
          */
         function schedule(url, str) 
         {
-                QUEUE.append([url, str]);
+                QUEUE.push([url, str]);
 
                 if (ENABLED === true) {
                         /* 
@@ -310,8 +153,8 @@ var Output = (function()
                 unschedule();
 
                 if (ENABLED === true) {
-                        var items = QUEUE.splice(0, QUEUE.length);
-                        for (var i=0; i<items.length; i++) {
+                        var item = QUEUE.splice(0, QUEUE.length);
+                        for (var i=0; i<item.length; i++) {
                                 send(item[i][0], item[i][1]);
                         }
                 } else {
@@ -346,7 +189,7 @@ var Output = (function()
         function send(url, str)
         {
                 if (ENABLED === true) {
-                        navigator.sendBeacon(url, str);
+                        navigator.sendBeacon(url, str); // TODO: CONFIGURABLE 
                         send_all_scheduled();
                 } else {
                         schedule(url, str);
@@ -383,275 +226,147 @@ var Output = (function()
         };
 })();
 
-
 /******************************************************************************
- * Input 
- * 
- * This is kept as a small, separate module that can be loaded first, in
- * order to have the ability to store events from before the library has
- * been loaded in.
- *
- * For the web this functionality is handled by mw.track, so we do not
- * need this feature.
- *
- * On the apps, we will not be loading modules in a segmented way, so the
- * purpose of this feature is to ensure that events can be added prior to
- * the resolution of the stream configuration request and init process.
- *
- * So really, in the only cases where this feature needs to be implemented,
- * it is okay to have it be part of the library.
- *
- * That's good because also on the apps, certain information like the wiki
- * and stuff that is coupled would need to exist in this module too.
+ * TOKENS 
  ******************************************************************************/
-var Input = (function()
-{
-        var QUEUE = [];
-        var CALLBACK = null; 
-
-        function set_processor(fn)
-        {
-                CALLBACK = fn;
-        }
-
-        function call_processor()
-        {
-                if (CALLBACK === null) {
-                        return; 
-                } else {
-                        while (QUEUE.length > 0) {
-                                CALLBACK.call(null, QUEUE.pop());
-                        }
-                }
-        }
-
-        function event(stream_name, data) 
-        {
-                /* 
-                 * TODO: Document that timestamp needs to be added at
-                 * this stage, but nothing else.
-                 */
-                QUEUE.push([stream_name, data, MOCK_GET_ISO_8601_TIMSTAMP()]);
-                call_processor();
-        }
-
-        return {
-                "set_processor": set_processor,
-                "call_processor": call_processor,
-                "event": event,
-        }
-})();
-
-
-
-
-/******************************************************************************
- * Sampler 
- ******************************************************************************/
-var Sampler = (function()
-{
-        function make_thresholds(weights, max_val)
-        {
-                if (typeof max_val === "undefined") {
-                        max_val = 65535;
-                }
-
-                let segments = weights.map( function( weight ) {
-                        return weight * max_val;
-                } );
-    
-                for (var s = 1; s < segments.length; s++) {
-                        segments[s] += segments[s - 1];
-                }
-    
-                return segments;
-        }
-
-        function in_bucket(rand, weights, max_val)
-        {
-                if (typeof max_val === "undefined") {
-                        max_val = 65535;
-                }
-
-                let buckets = weights.length;
-
-                if (buckets > 1) {
-                        let segments = Sampling.makeThresholds(weights, max_val);
-                        for (var i = 0; i < buckets; i++) {
-                                if (rand < segments[i]) {
-                                        return i + 1; // number of segment aka bucket
-                                }
-                        }
-                        return -1;
-                } else {
-                        return buckets;
-                }
-        }
-
-        function in_sample(rand, prob, max_val)
-        {
-                if (typeof max_val === "undefined") {
-                        max_val = 65535;
-                }
-
-                return in_bucket(rand, [prob, 1-prob], max_val) === 1;
-        }
-
-        return {
-                "in_sample":in_sample
-        }
-})();
-
-
-/******************************************************************************
- * Storage 
- ******************************************************************************/
+/* TODO: THis is so much code; I don't like it at all */
 var Storage = (function()
 {
-        function get_persist()
-        {
-                var data = window.localStorage.getItem('epc');
-                return (data) ? JSON.parse(data) : {}; 
-        }
-        function key_persist(key)
-        {
-                var data = get_persist();
-                return (data && (key in data)) ? data[key] : null;
-        }
-        function set_persist(data)
-        {
-                window.localStorage.setItem('epc', JSON.stringify(data));
-        }
-        function inc_persist(name)
-        {
-                var data = get_persist();
+        var EPC_STORAGE_KEY = 'epc';
+        var EPC_ALLOC = 256;
+        var EPC_PERSIST_ALLOWED = true;
 
-                if (name in data) {
-                        data[name] += 1;
-                } else {
-                        data[name] = 1 + (Object.keys(data).length * 256);
-                }
-                set_persist(data);
-        }
-        function clear_persist()
+        var CACHE = {};
+
+        function persist_get()
         {
-                window.localStorage.removeItem('epc');
+                return INTEGRATION_persistent_store_get(EPC_STORAGE_KEY);
+        }
+
+        function persist_set(v)
+        {
+                INTEGRATION_persistent_store_set(EPC_STORAGE_KEY, v);
+        }
+
+        function get(k)
+        {
+                /* Try the cache first */
+                if (k in CACHE) {
+                        return CACHE[k];
+                }
+
+                if (EPC_PERSIST_ALLOWED) {
+                        var data = persist_get();
+                        if (k in data) {
+                                return data[k];
+                        }
+                }
+
+                return null;
+        }
+
+        function set(k, v, persist)
+        {
+                CACHE[k] = v;
+
+                if (EPC_PERSIST_ALLOWED && persist === true) {
+                        var data = persist_get();
+                        data[k] = v;
+                        persist_set(data);
+                }
+        }
+
+        function clr()
+        {
+                if (EPC_PERSIST_ALLOWED) {
+                        persist_set({});
+                }
+        }
+
+        function inc(k, persist)
+        {
+                var v = get(k);
+
+                if (v === null) {
+                        if (EPC_PERSIST_ALLOWED && persist === true) {
+                                var offset = Object.keys(persist_get()).length;
+                        } else {
+                                var offset = Object.keys(CACHE).length;
+                        }
+                        v = 1 + (EPC_ALLOC * offset);
+                } else {
+                        v = v + 1;
+                }
+
+                set(k, v);
         }
 
         return {
-                "get": get_persist,
-                "set": set_persist,
-                "inc": inc_persist,
-                "key": key_persist,
-                "clear": clear_persist,
+                "get": get,
+                "set": set,
+                "inc": inc,
+                "clr": clr
         };
 })();
 
-/******************************************************************************
- * TOKEN MANAGER
- ******************************************************************************/
+/*************************************************
+ * RANDOMNESS INTEGRATION BRIDGE 
+ *************************************************/
 var Token = (function()
 {
-        var SESSION_ID  = null;
-        var PAGEVIEW_ID = null;
-        var STREAM_SEQ = {};
-
-        function new_id()
+        function session()
         {
-                return generate_80_random_bits_as_hex_string() + "0000";
+                if (!Storage.get("session") || session_timeout_condition()) {
+                        Storage.clr();
+                        Storage.set("session", NEW_ID(), true);
+                }
+                return Storage.get("session");
         }
 
-        function session_timeout_condition()
+        function pageview()
         {
-                return false;
+                if (!Storage.get("pageview")) {
+                        Storage.set("pageview", NEW_ID());
+                }
+                return Storage.get("pageview");
         }
 
-        /**
-         * The session ID is always stored in persistent storage.
-         * However a copy is cached in memory for faster retreival.
-         */ 
-        function get_session_id()
+        function activity(name)
         {
-                /* Pull from cache on reload, or reset if first time */
-                if (SESSION_ID === null) {
-                        var data = Storage.get();
-                        if (!data || !("session_id" in data)) {
-                                SESSION_ID = new_id();
-                                Storage.set({
-                                        "session_id": SESSION_ID,
-                                });
-                        } else {
-                                SESSION_ID = data.session_id;
-                        }
+                var sn = Storage.get(name);
+                switch (Stream.scope(name)) {
+                case "session":
+                        var id = get_session_id();
+                        break;
+                case "pageview":
+                        var id = get_pageview_id();
+                        break;
                 }
 
-                /* Reset on timeout */
-                if (session_timeout_condition()) {
-                        SESSION_ID = new_id();
-                        Storage.set({
-                                "session_id": SESSION_ID,
-                        });
-                }
-
-                return SESSION_ID;
-        }
-
-        function get_pageview_id()
-        {
-                return PAGEVIEW_ID;
-        }
-
-        function inc_activity_id(name)
-        {
-                var scope = Stream.scope(name);
-
-                if (scope === "session") {
-                        Storage.inc_persist(name);
+                if (id && sn) {
+                        return id + (sn + 0x10000).toString( 16 ).slice( 1 );
                 } 
-                if (scope === "pageview") {
-                        if (name in SEQUENCE) {
-                                STREAM_SEQ[name] += 1;
-                        } else {
-                                STREAM_SEQ[name] = 1 + (Object.keys(STREAM_SEQ).length * 256);
-                        }
-                }
+
+                return null;
         }
 
-        function get_activity_id(name)
+        function increment(name)
         {
-                var scope = Stream.scope(name);
-                var id = null;
-                var seq = null;
-
-                if (scope === "session") {
-                        id = get_session_id();
-                        seq = Storage.key(name);
-                }
-                if (scope === "pageview") {
-                        id = get_pageview_id();
-                        seq = STREAM_SEQ[name];
-                }
-
-                if (id && seq) {
-                        return id + (seq + 0x10000).toString( 16 ).slice( 1 );
-                } else {
-                        /* 
-                         * Without a scope or a start state passed, there
-                         * will not be an activity ID.
-                         */ 
-                        return null;
-                }
+                switch (Stream.scope(name)) {
+                case "session":
+                        Storage.inc(name, true);
+                        break;
+                case "pageview":
+                        Storage.inc(name);
+                        break;
+                } 
         }
-
-        window.addEventListener('load', function() {
-                PAGEVIEW_ID = new_id(); 
-        });
 
         return {
-                "get_session_id": get_session_id,
-                "get_pageview_id": get_pageview_id,
-                "get_activity_id":get_sequence_id 
-                "inc_activity_id":inc_sequence_id 
+                "session" : session,
+                "pageview": pageview,
+                "activity":activity,
+                "increment":increment,
         };
 })();
 
@@ -666,7 +381,19 @@ var Stream = (function()
         function init()
         {
                 STREAM  = MOCK_STREAM_CONFIG();
-                CASCADE = MAKE_STREAM_CASCADE(STREAM);
+                CASCADE = {};
+
+                for (var x in STREAM) {
+                        for (var y in STREAM) {
+                                if (y.indexOf(x+'.') === 0) {
+                                        if (!(x in CASCADE)) { 
+                                                CASCADE[x] = [y];
+                                        } else {
+                                                CASCADE[x].push(y);
+                                        }
+                                }
+                        }
+                }
 
                 Input.set_processor(event);
 
@@ -676,22 +403,10 @@ var Stream = (function()
 
         function is_stream_enabled(name)
         {
-                /* TODO: Are we disabling collection globally? */
-                if (!MOCK_GLOBAL_IS_COLLECTION_ENABLED()) {
-                        return false;
+                if (EPC_ENABLED() && stream_exists(name) && stream_active(name)) {
+                        return true;
                 }
-
-                /* Does stream exist? */
-                if (!(name in STREAM)) {
-                        return false;
-                }
-
-                /* Is stream disabled in stream config? */ 
-                if ("active" in STREAM[name] && STREAM[name].active === false) {
-                        return false;
-                }
-
-                return true;
+                return false;
         }
 
         function is_stream_sampled(name)
@@ -703,23 +418,40 @@ var Stream = (function()
                 return true; 
         }
 
-        /* 
-         * These are properties that can be set in the stream config that
-         * will determine the client behavior.
-         */
+        function stream_exists(name)
+        {
+                return (name in STREAM);
+        }
+
+        function get_stream_property(name, property, if_dne)
+        {
+                if ((name in STREAM) && (property in STREAM[name])) {
+                        return STREAM[name][property];
+                }
+                return if_dne;
+        }
+
+        function stream_active(name)
+        {
+                return get_stream_property(name, "active", true); 
+        }
+
         function stream_scope(name)
         {
-                return ("scope" in STREAM[name]) ? STREAM[name].scope : "none";
+                return get_stream_property(name, "scope", "none");
         }
 
         function stream_start(name)
         {
-                return ("start" in STREAM[name]) ? STREAM[name].start : null;
+                return get_stream_property(name, "start", null);
         }
 
+        /* 
+         * TODO: Do we even want to bother with this?
+         */
         function is_event_orphaned(name, data)
         {
-                var start = stream_start();
+                var start = stream_start(name);
 
                 /* If there isn't a start state, we can't be orphaned. */
                 if (!start) {
@@ -733,7 +465,7 @@ var Stream = (function()
                                  * ARE INCREMENTED. THE USE OF THESE
                                  * 'START' STATES IN THE STREAM CONFIG
                                  */
-                                Token.inc_activity_id(name);
+                                Token.increment(name);
                         } else {
                                 /* 
                                  * Yes, the sequence data has been cleared due to
@@ -742,7 +474,7 @@ var Stream = (function()
                                  * dangling and shouldn't be recorded probably? If
                                  * we are to enforce the session convention.
                                  */ 
-                                if (null === Token.get_activity_id(name)) {
+                                if (null === Token.activity(name)) {
                                         return true;
                                 }
                         }
@@ -758,12 +490,15 @@ var Stream = (function()
         function event(name, data, timestamp) 
         { 
                 if (!is_stream_enabled(name)) {
+                        console.log('not enabled');
                         return false;
                 }
                 if (is_event_orphaned(name, data)) {
+                        console.log('orphaned');
                         return false;
                 }
                 if (!is_stream_sampled(name)) {
+                        console.log('not sampled');
                         return false;
                 }
 
@@ -779,9 +514,9 @@ var Stream = (function()
 
                 e.$schema = STREAM[name].schema_url;
 
-                e.session_id  = Token.get_session_id();
-                e.pageview_id = Token.get_pageview_id(); 
-                e.activity_id = Token.get_activity_id(name);
+                e.session  = Token.session();
+                e.pageview = Token.pageview(); 
+                e.activity = Token.activity(name);
 
                 Output.schedule(STREAM[name].url, JSON.stringify(e));
 
@@ -802,7 +537,9 @@ var Stream = (function()
 
         return {
                 "init": init,
-                "increment": increment
                 "scope": stream_scope,
         };
 })();
+
+
+
