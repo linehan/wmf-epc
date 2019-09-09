@@ -34,6 +34,63 @@
 
 
 /******************************************************************************
+ * INTEGRATION 
+ *
+ * These are various functions that will link this library to platform
+ * specific functionality. 
+ *
+ * In other words, you fill this out on a per-platform basis.
+ ******************************************************************************/
+
+var Integration {
+        "get_store": function(k) {
+                var data = window.localStorage.getItem(k);
+                return (data) ? JSON.parse(data) : {}; 
+        },
+        "set_store": function(k, v) {
+                window.localStorage.setItem(k, JSON.stringify(v));
+        },
+
+        "new_id": function() {
+                /* Support: IE 11 */
+                var crypto = window.crypto || window.msCrypto;
+
+                if ( crypto && crypto.getRandomValues ) {
+                        if ( typeof Uint16Array === 'function' ) {
+                                /* 
+                                 * Fill an array with 5 random values, 
+                                 * each of which is 16 bits.
+                                 * 
+                                 * Note that Uint16Array is array-like, 
+                                 * but does not implement Array.
+                                 */
+                                var rnds = new Uint16Array( 5 );
+                                crypto.getRandomValues( rnds );
+                        }
+                } else {
+                        var rnds = new Array( 5 );
+                        /* 
+                         * 0x10000 is 2^16 so the operation below will return 
+                         * a number between 2^16 and zero
+                         */
+                        for ( var i = 0; i < 5; i++ ) {
+                                rnds[ i ] = Math.floor( Math.random() * 0x10000 );
+                        }
+                }
+
+                return  ( rnds[ 0 ] + 0x10000 ).toString( 16 ).slice( 1 ) +
+                        ( rnds[ 1 ] + 0x10000 ).toString( 16 ).slice( 1 ) +
+                        ( rnds[ 2 ] + 0x10000 ).toString( 16 ).slice( 1 ) +
+                        ( rnds[ 3 ] + 0x10000 ).toString( 16 ).slice( 1 ) +
+                        ( rnds[ 4 ] + 0x10000 ).toString( 16 ).slice( 1 );
+        },
+
+        "generate_UUID_v4": function() {
+                return "ffffffff-ffff-ffff-ffff-ffffffffffff";
+        },
+}
+
+/******************************************************************************
  * Output 
  *
  * The output module buffers events being transmitted to the remote intake 
@@ -227,146 +284,115 @@ var Output = (function()
 })();
 
 /******************************************************************************
- * TOKENS 
+ * TOKEN 
+ * Handles the storage and book-keeping that controls the various
+ * pageview, session, and activity tokens.
  ******************************************************************************/
-/* TODO: THis is so much code; I don't like it at all */
-var Storage = (function()
-{
-        var EPC_STORAGE_KEY = 'epc';
-        var EPC_ALLOC = 256;
-        var EPC_PERSIST_ALLOWED = true;
-
-        var CACHE = {};
-
-        function persist_get()
-        {
-                return INTEGRATION_persistent_store_get(EPC_STORAGE_KEY);
-        }
-
-        function persist_set(v)
-        {
-                INTEGRATION_persistent_store_set(EPC_STORAGE_KEY, v);
-        }
-
-        function get(k)
-        {
-                /* Try the cache first */
-                if (k in CACHE) {
-                        return CACHE[k];
-                }
-
-                if (EPC_PERSIST_ALLOWED) {
-                        var data = persist_get();
-                        if (k in data) {
-                                return data[k];
-                        }
-                }
-
-                return null;
-        }
-
-        function set(k, v, persist)
-        {
-                CACHE[k] = v;
-
-                if (EPC_PERSIST_ALLOWED && persist === true) {
-                        var data = persist_get();
-                        data[k] = v;
-                        persist_set(data);
-                }
-        }
-
-        function clr()
-        {
-                if (EPC_PERSIST_ALLOWED) {
-                        persist_set({});
-                }
-        }
-
-        function inc(k, persist)
-        {
-                var v = get(k);
-
-                if (v === null) {
-                        if (EPC_PERSIST_ALLOWED && persist === true) {
-                                var offset = Object.keys(persist_get()).length;
-                        } else {
-                                var offset = Object.keys(CACHE).length;
-                        }
-                        v = 1 + (EPC_ALLOC * offset);
-                } else {
-                        v = v + 1;
-                }
-
-                set(k, v);
-        }
-
-        return {
-                "get": get,
-                "set": set,
-                "inc": inc,
-                "clr": clr
-        };
-})();
-
-/*************************************************
- * RANDOMNESS INTEGRATION BRIDGE 
- *************************************************/
 var Token = (function()
 {
+        var PAGEVIEW = null;
+        var SESSION = null;
+
+        function session_timeout_condition()
+        {
+                return false;
+        }
+
+        function new_table()
+        {
+                return { ":id": new_id(), ":sg": 1 };
+        }
+
+        function pageview_check()
+        {
+                if (PAGEVIEW === null) {
+                        PAGEVIEW = new_table(); 
+                }
+        }
+
+        function session_check()
+        {
+                /* A fresh execution will have SESSION set to null */
+                if (SESSION === null) {
+                        /* Attempt to load SESSION from persistent store */
+                        SESSION = Integration.get_store("epc-session");
+
+                        /* If this fails, or the data is malformed */
+                        if (!SESSION || !(":id" in SESSION) || !(":sg" in SESSION)) { 
+                                /* Then regenerate */
+                                SESSION = new_table();
+                                Integration.set_store("epc-session", SESSION);
+                        }
+                }
+                /* If the session is over, based on our criteria */
+                if (session_timeout()) {
+                        /* Then regenerate */
+                        SESSION = new_table();              
+                        Integration.set_store("epc-session", SESSION);
+
+                        /* And trigger a pageview regeneration as well */
+                        PAGEVIEW = new_table();
+                }
+        }
+
         function session()
         {
-                if (!Storage.get("session") || session_timeout_condition()) {
-                        Storage.clr();
-                        Storage.set("session", NEW_ID(), true);
-                }
-                return Storage.get("session");
+                session_check();
+                return SESSION[":id"];
         }
 
         function pageview()
         {
-                if (!Storage.get("pageview")) {
-                        Storage.set("pageview", NEW_ID());
-                }
-                return Storage.get("pageview");
+                pageview_check();
+                return PAGEVIEW[":id"];
         }
 
-        function activity(name)
+        function activity(name, scopename)
         {
-                var sn = Storage.get(name);
-                switch (Stream.scope(name)) {
-                case "session":
-                        var id = get_session_id();
-                        break;
-                case "pageview":
-                        var id = get_pageview_id();
-                        break;
-                }
+                var id, sn;
 
-                if (id && sn) {
+                if (scopename === "session") {
+                        id = session();
+                        if (!(name in SESSION)) {
+                                SESSION[name] = SESSION[":sg"]++;
+                                Integration.set_store("epc-session", SESSION);
+                        }
+                        sn = SESSION[name];
                         return id + (sn + 0x10000).toString( 16 ).slice( 1 );
-                } 
-
+                }
+                if (scopename === "pageview") {
+                        id = pageview();
+                        if (!(name in PAGEVIEW)) {
+                                PAGEVIEW[name] = PAGEVIEW[":sg"]++;
+                        }
+                        sn = PAGEVIEW[name];
+                        return id + (sn + 0x10000).toString( 16 ).slice( 1 );
+                }
                 return null;
         }
 
-        function increment(name)
+        function activity_reset(name)
         {
-                switch (Stream.scope(name)) {
-                case "session":
-                        Storage.inc(name, true);
-                        break;
-                case "pageview":
-                        Storage.inc(name);
-                        break;
-                } 
+                pageview_check();
+                if (name in PAGEVIEW) {
+                        delete(PAGEVIEW[name]);
+                        /* Only one scope per event, so if it was a pageview
+                         * event, we don't need to check the session data */
+                        return;
+                }
+
+                session_check();
+                if (name in SESSION) {
+                        delete(SESSION[name]);
+                        Integration.set_store("epc-session", SESSION);
+                }
         }
 
         return {
                 "session" : session,
                 "pageview": pageview,
-                "activity":activity,
-                "increment":increment,
+                "activity": activity,
+                "activity_reset":activity_reset,
         };
 })();
 
@@ -382,28 +408,11 @@ var Stream = (function()
         {
                 STREAM  = MOCK_STREAM_CONFIG();
                 CASCADE = {};
-
-                for (var x in STREAM) {
-                        for (var y in STREAM) {
-                                if (y.indexOf(x+'.') === 0) {
-                                        if (!(x in CASCADE)) { 
-                                                CASCADE[x] = [y];
-                                        } else {
-                                                CASCADE[x].push(y);
-                                        }
-                                }
-                        }
-                }
-
-                Input.set_processor(event);
-
-                /* Process any events that have accumulated prior to init() */
-                Input.call_processor(); 
         }
 
         function is_stream_enabled(name)
         {
-                if (EPC_ENABLED() && stream_exists(name) && stream_active(name)) {
+                if (EPC_ENABLED() && (name in STREAM) && stream_active(name)) {
                         return true;
                 }
                 return false;
@@ -411,16 +420,7 @@ var Stream = (function()
 
         function is_stream_sampled(name)
         {
-                /* 
-                 * Here we use the various tokens, combined with the
-                 * stream's sampling logic, to compute a predicate.
-                 */
                 return true; 
-        }
-
-        function stream_exists(name)
-        {
-                return (name in STREAM);
         }
 
         function get_stream_property(name, property, if_dne)
@@ -441,71 +441,29 @@ var Stream = (function()
                 return get_stream_property(name, "scope", "none");
         }
 
-        function stream_start(name)
-        {
-                return get_stream_property(name, "start", null);
-        }
-
-        /* 
-         * TODO: Do we even want to bother with this?
-         */
         function is_event_orphaned(name, data)
         {
-                var start = stream_start(name);
-
-                /* If there isn't a start state, we can't be orphaned. */
-                if (!start) {
-                        return false;
-                }
-
-                if ("action" in data) {
-                        if (data.action === start) {
-                                /* 
-                                 * THIS IS THE ONLY WAY THAT THINGS
-                                 * ARE INCREMENTED. THE USE OF THESE
-                                 * 'START' STATES IN THE STREAM CONFIG
-                                 */
-                                Token.increment(name);
-                        } else {
-                                /* 
-                                 * Yes, the sequence data has been cleared due to
-                                 * a session reset or a stream config reset or a
-                                 * user localStorage reset, and now this funnel is
-                                 * dangling and shouldn't be recorded probably? If
-                                 * we are to enforce the session convention.
-                                 */ 
-                                if (null === Token.activity(name)) {
-                                        return true;
-                                }
-                        }
-                } else {
-                        /* 
-                         * TODO: there is a 'start' state but no 'action'. 
-                         * This is bad and we ought to design it out.
-                         */
-                        return false;
-                }
+                /* 
+                 * TODO: Do we even want to bother with this?
+                 */
         }
 
         function event(name, data, timestamp) 
         { 
                 if (!is_stream_enabled(name)) {
-                        console.log('not enabled');
                         return false;
                 }
                 if (is_event_orphaned(name, data)) {
-                        console.log('orphaned');
                         return false;
                 }
                 if (!is_stream_sampled(name)) {
-                        console.log('not sampled');
                         return false;
                 }
 
                 var e = data;
 
                 e.meta = {
-                        "id"    : MOCK_GEN_UUID_V4(),
+                        "id"    : Integration.generate_UUID_v4(),
                         "dt"    : timestamp,
                         "domain": MOCK_WIKI_DOMAIN(),
                         "uri"   : MOCK_WIKI_URI(),
@@ -516,30 +474,27 @@ var Stream = (function()
 
                 e.session  = Token.session();
                 e.pageview = Token.pageview(); 
-                e.activity = Token.activity(name);
+                e.activity = Token.activity(name, stream_scope(name));
 
                 Output.schedule(STREAM[name].url, JSON.stringify(e));
 
                 /* Cascade the event to child events */ 
-                if (name in CASCADE) { 
-                        for (var i=0; i<CASCADE[name].length; i++) { 
-                                /* 
-                                 * TODO: We can't have this calling 
-                                 * is_event_orphaned more than once! 
-                                 *
-                                 * If it's not orphaned but needs to get
-                                 * incremented, that will happen there.
-                                 */
-                                event(CASCADE[name][i], data);
+                if (!(name in CASCADE)) {
+                        CASCADE[name] = [];
+                        for (var x in STREAM) {
+                                if (x.indexOf(name+".") === 0) {
+                                        CASCADE[name].push(x);
+                                }
                         }
+                }
+                for (var i=0; i<CASCADE[name].length; i++) { 
+                        /* TODO: don't call is_event_orphaned more than once! */
+                        event(CASCADE[name][i], data);
                 }
         }
 
         return {
                 "init": init,
-                "scope": stream_scope,
+                "event": stream_scope,
         };
 })();
-
-
-
