@@ -32,6 +32,68 @@
  *     Mikhail Popov <mpopov@wikimedia.org>
  */
 
+function MOCK_STREAM_CONFIG()
+{
+        return {
+                "edit": {
+                        "stream": "edit",
+                        "scope": "session",
+                        "sample": 0.06,
+                        "start_states": ["editAttemptStart"],
+                        "final_states": ["editAttemptSuccess", "editAttemptFailure"],
+                        "active": false,
+                        "url": "/log",
+                },
+                "edit.firstday": {
+                        /* 
+                         * TODO: 
+                         * Should the sub-stream have its own activity ID?
+                         * Or not? 
+                         *
+                         * Probably not.
+                         *
+                         * If it does not, then we should really do cascading
+                         * the way MP mentioned. That way the scope and stream
+                         * name are the same as with 'edit'. 
+                         *
+                         * But 'stream' is used for table routing. Then we will
+                         * need some other way to point. Okay.
+                         */
+                        "stream": "edit.firstday",
+                        "scope": "session",
+                        "sample": 1.0,
+                        "filter": {
+                                "conf_value": ["wiki_first_day"],
+                        },
+                        "url": "/lab",
+                },
+                "click": {
+                        "stream": "click",
+                        "sample": 0.01,
+                        /* 
+                         * An example of a predicate filter with fields
+                         * we could support.
+                         */
+                        "active":true,
+                        "filter": {
+                                "user_status": ["login", "anon"],
+                                "user_agent": ["firefox", "chrome", "safari"],
+                                "wiki_lang": ["en", "cz", "jp"],
+                                "localtime":["start_time", "end_time"],
+                                /* 
+                                 * A boolean value we can set in their user
+                                 * settings and test for; to allow tagging of
+                                 * cohorts and a kind of 'catch all' route for 
+                                 * predicates we don't yet, or can never, 
+                                 * support in the client. 
+                                 */
+                                "conf_value": ["wiki_first_day"],
+                        },
+                        "url": "https://pai-test.wmflabs.org/log",
+                }
+        };
+}
+
 
 /******************************************************************************
  * INTEGRATION 
@@ -42,7 +104,7 @@
  * In other words, you fill this out on a per-platform basis.
  ******************************************************************************/
 
-var Integration {
+var Integration = {
         "get_store": function(k) {
                 var data = window.localStorage.getItem(k);
                 return (data) ? JSON.parse(data) : {}; 
@@ -88,6 +150,23 @@ var Integration {
         "generate_UUID_v4": function() {
                 return "ffffffff-ffff-ffff-ffff-ffffffffffff";
         },
+
+        "http_get": function(url, callback) {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", url, true);
+                xhr.setRequestHeader("Content-Type", "application/json");
+                xhr.onreadystatechange = function () {
+                        if (xhr.readyState === 4 && xhr.status === 200) {
+                                var json = JSON.parse(xhr.responseText);
+                                callback.call(null, json);
+                        }
+                };
+                xhr.send();
+        },
+
+        "http_post": function(url, data) {
+                navigator.sendBeacon(url, data); 
+        }
 }
 
 /******************************************************************************
@@ -246,7 +325,7 @@ var Output = (function()
         function send(url, str)
         {
                 if (ENABLED === true) {
-                        navigator.sendBeacon(url, str); // TODO: CONFIGURABLE 
+                        Integration.http_post(url, str); 
                         send_all_scheduled();
                 } else {
                         schedule(url, str);
@@ -406,8 +485,10 @@ var Stream = (function()
 
         function init()
         {
-                STREAM  = MOCK_STREAM_CONFIG();
-                CASCADE = {};
+                STREAM = MOCK_STREAM_CONFIG();
+                //Integration.http_get("https://pai-test.wmflabs.org/streams", function(json) {
+                        //STREAM = json;
+                //});
         }
 
         function is_stream_enabled(name)
@@ -460,6 +541,8 @@ var Stream = (function()
                         return false;
                 }
 
+                console.log("here");
+
                 var e = data;
 
                 e.meta = {
@@ -476,7 +559,8 @@ var Stream = (function()
                 e.pageview = Token.pageview(); 
                 e.activity = Token.activity(name, stream_scope(name));
 
-                Output.schedule(STREAM[name].url, JSON.stringify(e));
+                Output.schedule('http://pai-test.wmflabs.org/log', JSON.stringify(e));
+                //Output.schedule(STREAM[name].url, JSON.stringify(e));
 
                 /* Cascade the event to child events */ 
                 if (!(name in CASCADE)) {

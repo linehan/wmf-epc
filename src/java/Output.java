@@ -1,12 +1,45 @@
+/*
+ * Event Platform Client (EPC) 
+ *
+ * DESCRIPTION 
+ *     Collects events in an input buffer, adds some metadata, places them 
+ *     in an ouput buffer where they are periodically bursted to a remote 
+ *     endpoint via HTTP POST.
+ *
+ *     Designed for use with Wikipedia Android application producing events to 
+ *     the EventGate intake service.
+ *
+ * LICENSE NOTICE
+ *     Copyright (C) 2019 Wikimedia Foundation 
+ *
+ *     This program is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License
+ *     as published by the Free Software Foundation; either version 2
+ *     of the License, or (at your option) any later version.
+ *
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program; if not, write to the Free Software
+ *     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 
+ *     02110-1301, USA.
+ *
+ * AUTHORS
+ *     Jason Linehan <jlinehan@wikimedia.org>
+ *     Mikhail Popov <mpopov@wikimedia.org>
+ */
 import java.util.Queue;
 import java.util.LinkedList;
 
 import java.util.Timer;
 import java.util.TimerTask;
 
-class Output
+public class Output
 { 
-        int WAIT_ITEMS = 2;
+        int WAIT_ITEMS = 10;
         int WAIT_MS = 2000;
         boolean ENABLED = true;
 
@@ -108,7 +141,12 @@ class Output
         public void send(String url, String str)
         {
                 if (ENABLED == true) {
-                        System.out.printf("%s %s\n", url, str);
+                        try {
+				Integration.http_post(url, str);
+			} catch (Exception e) {
+				/* dunno */
+			}
+			//System.out.printf("%s %s\n", url, str);
                         send_all_scheduled();
                 } else {
                         schedule(url, str);
@@ -119,13 +157,13 @@ class Output
                 }
         }
 
-        public static void main(String []args)
-        {
-                Output out = new Output();
+        //public static void main(String []args)
+        //{
+                //Output out = new Output();
 
-                out.schedule("foo.com", "{ bar:3, baz:4 }");
-                out.schedule("foo.org", "{ bar:3, baz:4 }");
-                out.schedule("foo.net", "{ bar:3, baz:4 }");
-                out.send("foo.com", "{ bar:8, baz:8 }");
-        }
+                //out.schedule("foo.com", "{ bar:3, baz:4 }");
+                //out.schedule("foo.org", "{ bar:3, baz:4 }");
+                //out.schedule("foo.net", "{ bar:3, baz:4 }");
+                //out.send("foo.com", "{ bar:8, baz:8 }");
+        //}
 }
