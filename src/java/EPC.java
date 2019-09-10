@@ -164,6 +164,10 @@ class EPC
 
 		charset = StandardCharsets.UTF_8.toString();
 
+                /* 
+                 * TODO: This code is bad and will be taken out and
+                 * replaced with a common HTTP GET requester. 
+                 */
 		try (Scanner scanner = new Scanner(url.openStream(), charset)) { 
 			/* 
 			 * Regex '\\A' matches beginning of input. 
@@ -203,9 +207,4 @@ class EPC
                         throw new RuntimeException(e);
                 }
 	}
-
-	//public static void main(String[] args)
-	//{
-		//init();	
-	//}
 }

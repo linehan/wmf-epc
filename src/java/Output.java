@@ -31,23 +31,34 @@
  *     Jason Linehan <jlinehan@wikimedia.org>
  *     Mikhail Popov <mpopov@wikimedia.org>
  */
-import java.util.Queue;
 import java.util.LinkedList;
-
 import java.util.Timer;
 import java.util.TimerTask;
 
+/******************************************************************************
+ * Output - Buffer outgoing HTTP requests 
+ ******************************************************************************/
 public class Output
 { 
-        int WAIT_ITEMS = 10;
-        int WAIT_MS = 2000;
-        boolean ENABLED = true;
+        /* CONFIGURABLE PARAMETERS */
+        /* FOR MORE INFO, SEE OUTPUT BUFFERING SPEC */
+        private static int WAIT_ITEMS = 10;
+        private static int WAIT_MS    = 2000;
 
-        Queue<Output_data> QUEUE = new LinkedList();
+        private boolean ENABLED = true;
 
-        Timer timer;
+        /* Queue to hold the [url, body] pairs that will be sent */
+        private LinkedList<String[]> queue = new LinkedList();
 
-        class Task extends TimerTask
+        /* Timer that controls the dispatch */
+        private Timer timer;
+
+        /* 
+         * TimerTask is an abstract class that we need to extend with  
+         * a new class having a run() method that will fire when the
+         * timer is triggered.
+         */ 
+        private class Task extends TimerTask
         {
                 public void run() 
                 {
@@ -55,23 +66,29 @@ public class Output
                 }
         }
 
-        class Output_data 
-        {
-                public String url; 
-                public String data;
-        }
-
+        /**
+         * Enable sending of events. 
+         * Anything currently in the queue will be sent immediately. 
+         */
         public void enable_sending()
         {
                 ENABLED = true;
                 send_all_scheduled();
         }
 
+        /**
+         * Disable sending of events.
+         * If the timer is currently active, it is cancelled. 
+         */
         public void disable_sending()
         {
                 ENABLED = false;
+                unschedule();
         }
 
+        /**
+         * Cancel the timer. 
+         */
         private void unschedule()
         {
                 if (timer != null) {
@@ -79,15 +96,18 @@ public class Output
                 }
         }
 
+        /**
+         * Send all of the requests in the queue. 
+         */
         private void send_all_scheduled()
         {
                 unschedule();
 
+                String[] item = new String[2];
+
                 if (ENABLED == true) {
-                        Output_data item;
-                       
-                        while ((item = QUEUE.poll()) != null) {
-                                send(item.url, item.data);
+                        while ((item = queue.poll()) != null) {
+                                send(item[0], item[1]);
                         }
                 } else {
                         /* 
@@ -110,17 +130,15 @@ public class Output
          */
         public void schedule(String url, String str) 
         {
-                Output_data out = new Output_data();
-                out.url = url;
-                out.data = str;
-                QUEUE.add(out);
+                String[] item = { url, str };
+                queue.add(item);
 
                 if (ENABLED == true) {
                         /* 
                          * >= because we might have been disabled and 
                          * accumulated who knows how many without sending.
                          */
-                        if (QUEUE.size() >= WAIT_ITEMS) {
+                        if (queue.size() >= WAIT_ITEMS) {
                                 send_all_scheduled();
                         } else {
                                 unschedule();
@@ -146,7 +164,6 @@ public class Output
 			} catch (Exception e) {
 				/* dunno */
 			}
-			//System.out.printf("%s %s\n", url, str);
                         send_all_scheduled();
                 } else {
                         schedule(url, str);
@@ -156,14 +173,4 @@ public class Output
                          */
                 }
         }
-
-        //public static void main(String []args)
-        //{
-                //Output out = new Output();
-
-                //out.schedule("foo.com", "{ bar:3, baz:4 }");
-                //out.schedule("foo.org", "{ bar:3, baz:4 }");
-                //out.schedule("foo.net", "{ bar:3, baz:4 }");
-                //out.send("foo.com", "{ bar:8, baz:8 }");
-        //}
 }

@@ -4,6 +4,10 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
+/******************************************************************************
+ * Collect functions that will be replaced or mapped to other 
+ * platform-specific functions. 
+ ******************************************************************************/
 class Integration
 {
         public static String get_stream_config()

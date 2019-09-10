@@ -32,119 +32,129 @@
  *     Mikhail Popov <mpopov@wikimedia.org>
  */
 import org.json.JSONObject;
+import org.json.JSONArray;
 
 /******************************************************************************
- * Stream - Manages execution of the EPC library. 
+ * Stream - Manages information belonging to the stream configuration. 
  *
- * This class provides the public interface
+ * Stores the parsed stream configuration JSON/YAML, but also provides 
+ * accessors for properties of named streams. 
  ******************************************************************************/
 public class Stream
 {
-        private JSONObject STREAM;
-        //Map<String, String> CASCADE; 
+        private JSONObject stream_config = null;
 
-        public Stream(JSONObject stream_config)
+        /**
+         * Stream constructor.
+         *
+         * The Stream object is instantiated using a JSONObject
+         * which represents the stream configuration. This object
+         * will then provide the library information about the stream
+         * configuration. 
+         */
+        public Stream(JSONObject config)
         {
-                STREAM = stream_config;
-                //CASCADE = new HashMap<String, String>();
-        }
-
-        public boolean is_enabled(String name) 
-        {
-                //if (!MOCK_GLOBAL_IS_COLLECTION_ENABLED()) {
-                        //return false;
-                //}
-
-                if (!STREAM.has(name)) {
-                        //[> This name has no configuration <]
-                        return false;
-                }
-
-                JSONObject stream = STREAM.getJSONObject(name);
-                if (stream.has("active") && stream.getBoolean("active") == false) {
-                        return false;
-                }
-
-                return true;
-        }
-
-        public boolean is_sampled(String name) 
-        {
-                return true;
-        }
-
-        public String url(String name)
-        {
-                if (STREAM.has(name)) {
-                        JSONObject s = STREAM.getJSONObject(name);
-                        String url;
-                        try {
-                                url = s.getString("url");
-                        } catch (Exception e) {
-                                return "";  
-                        }
-                        return url;
-                }
-                return "";
-        }
-
-        public String stream_start(String name)
-        {
-                return "";
-        }
-
-        public String scope(String name)
-        {
-                if (STREAM.has(name)) {
-                        JSONObject s = STREAM.getJSONObject(name);
-                        String scope;
-                        try {
-                                scope = s.getString("scope");
-                        } catch (Exception e) {
-                                return "unknown";  
-                        }
-                        return scope;
-                }
-                return "unknown"; 
+                stream_config = config;
         }
 
 
-        //public static void main(String []args)
-        //{
-                //Stream s = new Stream();
-                //s.init();
+        /* 
+         * PROPERTY ACCESSORS
+         */
 
-                //s.event("edit", new JSONObject("{msg:'hello, world!'}"), "1997");
-        //}
         
-        //public void event(String name, JSONObject data, String timestamp)
-        //{
-                //if (!STREAM.has(name)) {
-                        //return;
-                //}
+        /**
+         * Get the URL to send the stream event to  
+         *
+         * @stream: Name of the stream
+         * @return: Destination URL of event
+         */
+        public String url(String stream)
+        {
+                try {
+                        JSONObject s = stream_config.getJSONObject(stream);
+                        String url = s.getString("url");
+                        return url;
+                } catch (Exception e) {
+                        return "";
+                }
+        }
 
-                //JSONObject conf = STREAM.getJSONObject(name);
-                //String scope = "unknown";
-                //if (conf.has("scope")) {
-                        //scope = conf.getString("scope");
-                //}
+        /**
+         * Get the scope of the stream 
+         *
+         * @stream: Name of the stream
+         * @return: 'session', 'pageview', or 'unknown'.
+         */
+        public String scope(String stream)
+        {
+                try { 
+                        JSONObject s = stream_config.getJSONObject(stream);
+                        String scope = s.getString("scope");
+                        return scope;
+                } catch (Exception e) {
+                        return "unknown"; 
+                }
+        }
 
-                //JSONObject meta = new JSONObject();
-                //meta.put("id", "fff");
-                //meta.put("dt", timestamp);
-                //meta.put("domain", Integration.get_wiki_domain());
-                //meta.put("uri", Integration.get_wiki_uri());
-                //meta.put("stream", conf.getString("stream"));
+        /**
+         * Get whether the stream is active or not 
+         *
+         * @stream: Name of the stream
+         * @return: false if the stream is not active, otherwise true
+         */
+        public boolean active(String stream)
+        {
+                try { 
+                        JSONObject s = stream_config.getJSONObject(stream);
+                        boolean active = s.getBoolean("active");
+                        return active;
+                } catch (Exception e) {
+                        /* If you don't say otherwise, it's active */
+                        return true; 
+                }
+        }
 
-                //data.put("meta", meta);
+        /**
+         * Get an array of start states for the stream
+         *
+         * @stream: Name of the stream
+         * @return: JSONArray of string state labels
+         */
+        public JSONArray start(String name)
+        {
+                try { 
+                        JSONObject s = stream_config.getJSONObject(name);
+                        JSONArray start = s.getJSONArray("start");
+                        return start;
+                } catch (Exception e) {
+                        return new JSONArray(); 
+                }
+        }
 
-                //data.put("$schema",  conf.getString("schema_url"));
-                ////data.put("session",  Token.session());
-                ////data.put("pageview", Token.pageview());
-                ////data.put("activity", Token.activity(name, scope));
 
-                //System.out.printf("%s\n", data.toString());
-                ////Output.schedule(conf.getString("url"), data.toString());
-        //}
+        /* 
+         * PREDICATES 
+         */
+
+
+        public boolean is_enabled(String stream) 
+        {
+                if (!stream_config.has(stream)) {
+                        /* This name has no configuration */ 
+                        return false;
+                }
+                if (!active(stream)) {
+                        /* This stream has been deactivated in its config */
+                        return false;
+                }
+
+                return true;
+        }
+
+        public boolean is_sampled(String stream) 
+        {
+                return true;
+        }
 }
 
