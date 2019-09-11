@@ -71,4 +71,16 @@ class Integration
 		//print result
 		System.out.println(response.toString());
 	}
+
+        public static <T> void set_store(String key, T value)
+        {
+                /* Do nothing */
+                return;
+        }
+
+        public static <T> T get_store(String key)
+        {
+                /* Do nothing */
+                return null;
+        }
 }

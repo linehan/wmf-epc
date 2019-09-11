@@ -2,10 +2,6 @@
  * Event Platform Client (EPC) 
  *
  * DESCRIPTION 
- *     Collects events in an input buffer, adds some metadata, places them 
- *     in an ouput buffer where they are periodically bursted to a remote 
- *     endpoint via HTTP POST.
- *
  *     Designed for use with Wikipedia Android application producing events to 
  *     the EventGate intake service.
  *
@@ -42,9 +38,19 @@ import java.util.Random;
  ******************************************************************************/
 public class Token
 {
-        Map<String, String> PAGEVIEW = null;
-        Map<String, String> SESSION = null;
+        /* Cache the ID values */
+        String PAGEVIEW_ID = null;
+        String SESSION_ID = null;
 
+        /* The global clock ticks */
+        Integer PAGEVIEW_CL = 1;
+        Integer SESSION_CL = 1;
+
+        /* Hash tables store sequence numbers for various scoped streams */
+        Map<String, Integer> PAGEVIEW_SQ = null;
+        Map<String, Integer> SESSION_SQ = null;
+
+        /* Used to generate random numbers in new_id() */
         Random prng = null;
 
         private String new_id()
@@ -70,82 +76,86 @@ public class Token
                 return false;
         }
 
-        private Map<String, String> new_table()
-        {
-                Map<String, String> table = new HashMap<String, String>();
-                table.put(":id", new_id());
-                table.put(":sg", "1");
-                return table;
-        }
-
         private void pageview_check()
         {
-                if (PAGEVIEW == null) {
-                        PAGEVIEW = new_table(); 
+                if (PAGEVIEW_ID == null) {
+                        PAGEVIEW_ID = new_id();
+                        PAGEVIEW_SQ = new HashMap<String, Integer>();
+                        PAGEVIEW_CL = 1;
                 }
         }
 
         private void session_check()
         {
                 /* A fresh execution will have SESSION set to null */
-                if (SESSION == null) {
-                        /* Attempt to load SESSION from persistent store */
-                        //SESSION = Integration.get_store("epc-session");
+                if (SESSION_ID == null) {
+                        /* Attempt to load SESSION from persistent store */ 
+                        SESSION_ID = Integration.get_store("epc-session-id");
+                        SESSION_SQ = Integration.get_store("epc-session-sq");
+                        SESSION_CL = Integration.get_store("epc-session-cl");
 
-                        /* If this fails, or the data is malformed */
-                        if (null == SESSION || !SESSION.containsKey(":id") || !SESSION.containsKey(":sg")) { 
-                                /* Then regenerate */
-                                SESSION = new_table();
-                                //Integration.set_store("epc-session", SESSION);
+                        /* If this fails, or the data is malformed... */ 
+                        if (SESSION_ID == null || SESSION_SQ == null) { 
+                                SESSION_ID = new_id();
+                                SESSION_SQ = new HashMap<String, Integer>();
+                                SESSION_CL = 1;
+                                Integration.set_store("epc-session-id", SESSION_ID);
+                                Integration.set_store("epc-session-sq", SESSION_SQ);
+                                Integration.set_store("epc-session-cl", SESSION_CL);
                         }
                 }
-                /* If the session is over, based on our criteria */
+                /* If the session is over, based on our criteria ... */
                 if (session_timeout()) {
-                        /* Then regenerate */
-                        SESSION = new_table();              
-                        //Integration.set_store("epc-session", SESSION);
+                        /* ... then regenerate ... */
+                        SESSION_ID = new_id();
+                        SESSION_SQ = new HashMap<String, Integer>();
+                        SESSION_CL = 1;
+                        Integration.set_store("epc-session-id", SESSION_ID);
+                        Integration.set_store("epc-session-sq", SESSION_SQ);
+                        Integration.set_store("epc-session-cl", SESSION_CL);
 
-                        /* And trigger a pageview regeneration as well */
-                        PAGEVIEW = new_table();
+                        /* ... and trigger a pageview regeneration as well */
+                        PAGEVIEW_ID = new_id();
+                        PAGEVIEW_SQ = new HashMap<String, Integer>();
+                        PAGEVIEW_CL = 1;
                 }
         }
 
         public String session()
         {
                 session_check();
-                return SESSION.get(":id");
+                return SESSION_ID;
         }
 
         public String pageview()
         {
                 pageview_check();
-                return PAGEVIEW.get(":id");
+                return PAGEVIEW_ID;
         }
 
         public String activity(String name, String scopename)
         {
                 String id;
-                int sn;
+                Integer sn;
 
                 if (scopename.equals("session")) {
                         id = session();
-                        if (!SESSION.containsKey(name)) {
-                                int sg = Integer.parseInt(SESSION.get(":sg"));
-                                SESSION.put(":sg", Integer.toString(sg+1));
-                                SESSION.put(name, Integer.toString(sg));
-                                //Integration.set_store("epc-session", SESSION);
+                        if (!SESSION_SQ.containsKey(name)) {
+                                SESSION_SQ.put(name, SESSION_CL);
+                                SESSION_CL = SESSION_CL + 1;
+                                Integration.set_store("epc-session-sq", SESSION_SQ);
+                                Integration.set_store("epc-session-cl", SESSION_CL);
                         }
-                        sn = Integer.parseInt(SESSION.get(name));
+                        sn = SESSION_SQ.get(name);
                         return String.format("%s%04x", id, sn);
                 }
                 if (scopename.equals("pageview")) {
                         id = pageview();
-                        if (!PAGEVIEW.containsKey(name)) {
-                                int sg = Integer.parseInt(PAGEVIEW.get(":sg"));
-                                PAGEVIEW.put(":sg", Integer.toString(sg+1));
-                                PAGEVIEW.put(name, Integer.toString(sg));
+                        if (!PAGEVIEW_SQ.containsKey(name)) {
+                                PAGEVIEW_SQ.put(name, PAGEVIEW_CL);
+                                PAGEVIEW_CL = PAGEVIEW_CL + 1;
                         }
-                        sn = Integer.parseInt(PAGEVIEW.get(name));
+                        sn = PAGEVIEW_SQ.get(name);
                         return String.format("%s%04x", id, sn);
                 }
                 return null;
@@ -154,30 +164,17 @@ public class Token
         public void activity_reset(String name)
         {
                 pageview_check();
-                if (PAGEVIEW.containsKey(name)) {
-                        PAGEVIEW.remove(name);
+                if (PAGEVIEW_SQ.containsKey(name)) {
+                        PAGEVIEW_SQ.remove(name);
                         /* Only one scope per event, so if it was a pageview
                          * event, we don't need to check the session data */
                         return;
                 }
 
                 session_check();
-                if (SESSION.containsKey(name)) {
-                        SESSION.remove(name);
-                        //Integration.set_store("epc-session", SESSION);
+                if (SESSION_SQ.containsKey(name)) {
+                        SESSION_SQ.remove(name);
+                        Integration.set_store("epc-session-sq", SESSION_SQ);
                 }
         }
-
-        //public static void main(String []args)
-        //{
-                //Token tok = new Token();
-
-                //System.out.printf("session:%s\n", tok.session());
-                //System.out.printf("pageview:%s\n", tok.pageview());
-                //System.out.printf("session activity foo:%s\n", tok.activity("foo", "session"));
-                //System.out.printf("session activity bar:%s\n", tok.activity("bar", "session"));
-                //System.out.printf("pageview activity baz:%s\n", tok.activity("baz", "pageview"));
-                //System.out.printf("pageview activity qux:%s\n", tok.activity("qux", "pageview"));
-                //System.out.printf("unknown activity baz:%s\n", tok.activity("baz", "unknown"));
-        //}
 }

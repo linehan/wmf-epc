@@ -2,10 +2,6 @@
  * Event Platform Client (EPC) 
  *
  * DESCRIPTION 
- *     Collects events in an input buffer, adds some metadata, places them 
- *     in an ouput buffer where they are periodically bursted to a remote 
- *     endpoint via HTTP POST.
- *
  *     Designed for use with Wikipedia Android application producing events to 
  *     the EventGate intake service.
  *

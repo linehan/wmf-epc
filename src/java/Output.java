@@ -2,10 +2,6 @@
  * Event Platform Client (EPC) 
  *
  * DESCRIPTION 
- *     Collects events in an input buffer, adds some metadata, places them 
- *     in an ouput buffer where they are periodically bursted to a remote 
- *     endpoint via HTTP POST.
- *
  *     Designed for use with Wikipedia Android application producing events to 
  *     the EventGate intake service.
  *
@@ -111,14 +107,14 @@ public class Output
                         }
                 } else {
                         /* 
-                         * Do nothing; the data is still in the buffer
+                         * Do nothing; the data is still in the queue 
                          * and will be sent after we are enabled again.
                          */
                 }
         }
 
         /**
-         * Schedule an item for sending. 
+         * Schedule an item to be sent 
          *
          * @url   : The target of the HTTP request 
          * @str   : The data to send as the POST body
@@ -130,7 +126,9 @@ public class Output
          */
         public void schedule(String url, String str) 
         {
+                /* An array of length 2 containing the two arguments */ 
                 String[] item = { url, str };
+
                 queue.add(item);
 
                 if (ENABLED == true) {
@@ -143,11 +141,11 @@ public class Output
                         } else {
                                 unschedule();
                                 timer = new Timer();
+                                /* See above for definition of Task() */
                                 timer.schedule(new Task(), WAIT_MS);
                         }
                 }
         }
-
 
         /**
          * Initiate an asynchronous HTTP POST request.

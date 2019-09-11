@@ -13,3 +13,26 @@ There is a separate library implementation for each platform:
 
 Libraries conform to common behavior found in associated documentation that
 will be made available.
+
+## API Overview
+
+### External interface - the EPC class
+- `EPC.init(void)`
+- `EPC.event(string streamName, map eventData)`
+
+### Internal interface - Stream
+- `Stream(JSONObject streamConfiguration)`
+- `Stream.get_scope(string streamName)` => `string`
+- `Stream.get_start(string streamName)` => `array of string`
+- `Stream.is_enabled(string streamName)` => `boolean`
+- `Stream.is_sampled(string streamName)` => `boolean`
+
+### Internal interface - Token
+- `Token.session(void)` => `string`
+- `Token.pageview(void)` => `string`
+- `Token.activity(string streamName, string scopeName)` => `string` or `null`
+- `Token.activity_reset(string streamName)`
+
+### Internal interface - Output
+- `Output.send(string url, string postBodyContent)`
+- `Output.schedule(string url, string postBodyContent)`
