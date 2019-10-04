@@ -8,16 +8,16 @@ SOURCES = \
 	Token.java \
 	Stream.java \
 	EPC.java \
-	Test.java
+	Main.java
 
 #
 # Which of the sources has the main function?
 #
-MAIN = Test 
+MAIN = Main
 
 #
-# List of libraries, in the form of .jar files, that should be 
-# referenced in the classpath when building. 
+# List of libraries, in the form of .jar files, that should be
+# referenced in the classpath when building.
 #
 LIBRARIES = \
 	json.jar
@@ -25,10 +25,10 @@ LIBRARIES = \
 #
 # The default starting point for the Makefile
 #
-# javac works properly only when it is being invoked on all 
+# javac works properly only when it is being invoked on all
 # the source files at the same time.
 #
-default: 
+default:
 	javac -g -classpath $(LIBRARIES) $(SOURCES)
 
 #
@@ -36,7 +36,7 @@ default:
 # the extra libraries in place.
 #
 run:
-	java -classpath $(LIBRARIES): $(MAIN) 
+	java -classpath $(LIBRARIES): $(MAIN)
 
 #
 # Clean up all the generated .class files.

@@ -1,16 +1,16 @@
 /*
- * Event Platform Client (EPC) 
+ * Event Platform Client (EPC)
  *
- * DESCRIPTION 
- *     Collects events in an input buffer, adds some metadata, places them 
- *     in an ouput buffer where they are periodically bursted to a remote 
+ * DESCRIPTION
+ *     Collects events in an input buffer, adds some metadata, places them
+ *     in an output buffer where they are periodically bursted to a remote
  *     endpoint via HTTP POST.
  *
- *     Designed for use with Wikipedia Android application producing events to 
+ *     Designed for use with Wikipedia Android application producing events to
  *     the EventGate intake service.
  *
  * LICENSE NOTICE
- *     Copyright (C) 2019 Wikimedia Foundation 
+ *     Copyright (C) 2019 Wikimedia Foundation
  *
  *     This program is free software; you can redistribute it and/or
  *     modify it under the terms of the GNU General Public License
@@ -24,7 +24,7 @@
  *
  *     You should have received a copy of the GNU General Public License
  *     along with this program; if not, write to the Free Software
- *     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 
+ *     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  *     02110-1301, USA.
  *
  * AUTHORS
@@ -41,7 +41,7 @@ import java.nio.charset.StandardCharsets;
  * EPC - Public library interface.
  *
  * This class ties together the library components, each of which is
- * otherwise totally encapsulated. 
+ * otherwise totally encapsulated.
  ******************************************************************************/
 class EPC
 {
@@ -70,7 +70,7 @@ class EPC
         /**
          * Store events until the library is finished initializing.
          *
-         * The EPC library makes an HTTP request to a remote stream 
+         * The EPC library makes an HTTP request to a remote stream
          * configuration service for information about how to evaluate
          * incoming event data. Until this initialization is complete,
          * we store any incoming events in this buffer.
@@ -85,18 +85,18 @@ class EPC
          * @throws: RuntimeException
          * @return: Nothing
          *
-         * USAGE 
+         * USAGE
          * The reason for the seemingly strange argument list pattern is
          * to provide convenience when specifying values of different types
          * that will end up in a JSONObject:
          *
-         *      EPC.event("edit", 
-         *              "username", "Dan",      
+         *      EPC.event("edit",
+         *              "username", "Dan",
          *              "is_happy", true,
          *              "edit_len", 13
          *      );
          */
-        public void event(String name, Object... datum) throws RuntimeException 
+        public void event(String name, Object... datum) throws RuntimeException
         {
                 JSONObject meta;
                 JSONObject data;
@@ -124,14 +124,14 @@ class EPC
                 data.put("session_id", token.session());
                 data.put("pageview_id", token.pageview());
 
-                /* Add the data fields from the argument list */ 
+                /* Add the data fields from the argument list */
                 for (i=0; i<datum.length; i+= 2) {
                         try {
-                                data.put(datum[i].toString(), datum[i + 1]); 
+                                data.put(datum[i].toString(), datum[i + 1]);
                         } catch (Exception e) {
-                                /* 
+                                /*
                                  * The type of datum[i + 1] was probably
-                                 * not mappable to a JSON-supported type. 
+                                 * not mappable to a JSON-supported type.
                                  */
                                 throw new RuntimeException(e);
                         }
@@ -147,7 +147,7 @@ class EPC
 
         /**
          * Fetch stream configuration and use it to instantiate Stream.
-         */ 
+         */
         public void init()
         {
                 JSONObject conf;
@@ -164,13 +164,13 @@ class EPC
 
 		charset = StandardCharsets.UTF_8.toString();
 
-                /* 
+                /*
                  * TODO: This code is bad and will be taken out and
-                 * replaced with a common HTTP GET requester. 
+                 * replaced with a common HTTP GET requester.
                  */
-		try (Scanner scanner = new Scanner(url.openStream(), charset)) { 
-			/* 
-			 * Regex '\\A' matches beginning of input. 
+		try (Scanner scanner = new Scanner(url.openStream(), charset)) {
+			/*
+			 * Regex '\\A' matches beginning of input.
 			 * This tells Scanner to tokenize the entire stream.
 			 */
 			scanner.useDelimiter("\\A");

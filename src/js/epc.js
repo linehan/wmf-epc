@@ -1,16 +1,16 @@
 /*
- * Event Platform Client (EPC) 
+ * Event Platform Client (EPC)
  *
- * DESCRIPTION 
- *     Collects events in an input buffer, adds some metadata, places them 
- *     in an ouput buffer where they are periodically bursted to a remote 
+ * DESCRIPTION
+ *     Collects events in an input buffer, adds some metadata, places them
+ *     in an output buffer where they are periodically bursted to a remote
  *     endpoint via HTTP POST.
  *
- *     Designed for use with MediaWiki browser clients producing events to 
+ *     Designed for use with MediaWiki browser clients producing events to
  *     the EventGate intake service.
  *
  * LICENSE NOTICE
- *     Copyright (C) 2019 Wikimedia Foundation 
+ *     Copyright (C) 2019 Wikimedia Foundation
  *
  *     This program is free software; you can redistribute it and/or
  *     modify it under the terms of the GNU General Public License
@@ -24,7 +24,7 @@
  *
  *     You should have received a copy of the GNU General Public License
  *     along with this program; if not, write to the Free Software
- *     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 
+ *     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  *     02110-1301, USA.
  *
  * AUTHORS
@@ -45,16 +45,16 @@ function MOCK_STREAM_CONFIG()
                         "url": "/log",
                 },
                 "edit.firstday": {
-                        /* 
-                         * TODO: 
+                        /*
+                         * TODO:
                          * Should the sub-stream have its own activity ID?
-                         * Or not? 
+                         * Or not?
                          *
                          * Probably not.
                          *
                          * If it does not, then we should really do cascading
                          * the way MP mentioned. That way the scope and stream
-                         * name are the same as with 'edit'. 
+                         * name are the same as with 'edit'.
                          *
                          * But 'stream' is used for table routing. Then we will
                          * need some other way to point. Okay.
@@ -70,7 +70,7 @@ function MOCK_STREAM_CONFIG()
                 "click": {
                         "stream": "click",
                         "sample": 0.01,
-                        /* 
+                        /*
                          * An example of a predicate filter with fields
                          * we could support.
                          */
@@ -80,12 +80,12 @@ function MOCK_STREAM_CONFIG()
                                 "user_agent": ["firefox", "chrome", "safari"],
                                 "wiki_lang": ["en", "cz", "jp"],
                                 "localtime":["start_time", "end_time"],
-                                /* 
+                                /*
                                  * A boolean value we can set in their user
                                  * settings and test for; to allow tagging of
-                                 * cohorts and a kind of 'catch all' route for 
-                                 * predicates we don't yet, or can never, 
-                                 * support in the client. 
+                                 * cohorts and a kind of 'catch all' route for
+                                 * predicates we don't yet, or can never,
+                                 * support in the client.
                                  */
                                 "conf_value": ["wiki_first_day"],
                         },
@@ -96,10 +96,10 @@ function MOCK_STREAM_CONFIG()
 
 
 /******************************************************************************
- * INTEGRATION 
+ * INTEGRATION
  *
  * These are various functions that will link this library to platform
- * specific functionality. 
+ * specific functionality.
  *
  * In other words, you fill this out on a per-platform basis.
  ******************************************************************************/
@@ -107,7 +107,7 @@ function MOCK_STREAM_CONFIG()
 var Integration = {
         "get_store": function(k) {
                 var data = window.localStorage.getItem(k);
-                return (data) ? JSON.parse(data) : {}; 
+                return (data) ? JSON.parse(data) : {};
         },
         "set_store": function(k, v) {
                 window.localStorage.setItem(k, JSON.stringify(v));
@@ -119,11 +119,11 @@ var Integration = {
 
                 if ( crypto && crypto.getRandomValues ) {
                         if ( typeof Uint16Array === 'function' ) {
-                                /* 
-                                 * Fill an array with 5 random values, 
+                                /*
+                                 * Fill an array with 5 random values,
                                  * each of which is 16 bits.
-                                 * 
-                                 * Note that Uint16Array is array-like, 
+                                 *
+                                 * Note that Uint16Array is array-like,
                                  * but does not implement Array.
                                  */
                                 var rnds = new Uint16Array( 5 );
@@ -131,8 +131,8 @@ var Integration = {
                         }
                 } else {
                         var rnds = new Array( 5 );
-                        /* 
-                         * 0x10000 is 2^16 so the operation below will return 
+                        /*
+                         * 0x10000 is 2^16 so the operation below will return
                          * a number between 2^16 and zero
                          */
                         for ( var i = 0; i < 5; i++ ) {
@@ -165,31 +165,31 @@ var Integration = {
         },
 
         "http_post": function(url, data) {
-                navigator.sendBeacon(url, data); 
+                navigator.sendBeacon(url, data);
         }
 }
 
 /******************************************************************************
- * Output 
+ * Output
  *
- * The output module buffers events being transmitted to the remote intake 
- * server. It is especially helpful on mobile clients where it mitigates: 
+ * The output module buffers events being transmitted to the remote intake
+ * server. It is especially helpful on mobile clients where it mitigates:
  *
  * - Loss of connection
  *      Events generated during connection loss still persist in
  *      the buffer. If the connection is restored, they can still
- *      be transmitted. 
+ *      be transmitted.
  *
- * - Poor battery life 
+ * - Poor battery life
  *      The network request profile is shaped so that requests are
  *      sent in "bursts", separated by downtime, during which the
- *      request data dwells in the buffer. 
+ *      request data dwells in the buffer.
  *
- *      This has been shown to improve battery life by allowing 
- *      the radio to enter its RRC idle state and other low-power 
- *      states during the time between bursts. 
+ *      This has been shown to improve battery life by allowing
+ *      the radio to enter its RRC idle state and other low-power
+ *      states during the time between bursts.
  ******************************************************************************/
-var Output = (function() 
+var Output = (function()
 {
         var WAIT_ITEMS = 2;
         var WAIT_MS = 2000;
@@ -215,9 +215,9 @@ var Output = (function()
         }
 
         /**
-         * Schedule an item for sending. 
+         * Schedule an item for sending.
          *
-         * @url   : The target of the HTTP request 
+         * @url   : The target of the HTTP request
          * @str   : The data to send as the POST body
          * @return: nothing
          *
@@ -225,17 +225,17 @@ var Output = (function()
          * If sending is not enabled, the scheduler will simply add the
          * item to the queue and return.
          *
-         * If sending is enabled, The scheduler will check the queue length. 
+         * If sending is enabled, The scheduler will check the queue length.
          *      If there are enough items in the queue, it will trigger a burst.
          *      Otherwise, it will reset the timeout which triggers a burst.
          */
-        function schedule(url, str) 
+        function schedule(url, str)
         {
                 QUEUE.push([url, str]);
 
                 if (ENABLED === true) {
-                        /* 
-                         * >= because we might have been disabled and 
+                        /*
+                         * >= because we might have been disabled and
                          * accumulated who knows how many without sending.
                          */
                         if (QUEUE.length >= WAIT_ITEMS) {
@@ -252,31 +252,31 @@ var Output = (function()
          * There are five ways to reach this function.
          *
          *      1. From schedule():
-         *              An item made QUEUE.length >= BURST_SIZE 
+         *              An item made QUEUE.length >= BURST_SIZE
          *      2. From send():
          *              We burst early because the radio is now awake
          *      3. From enable_sending():
-         *              In case timer has expired while disabled, we send here 
+         *              In case timer has expired while disabled, we send here
          *      4. From the burst timeout firing:
          *              Now that events have died down, we start the burst
          *      5. From another event (e.g. 'unload') firing:
          *              The handler may call this method to flush the buffer.
          *
-         * In case 1, 2, and 5, we are bursting "early", so there may be a 
-         * burst timeout counting down, and we need to unschedule() it. 
+         * In case 1, 2, and 5, we are bursting "early", so there may be a
+         * burst timeout counting down, and we need to unschedule() it.
          *
          * In case 3, we may be bursting "early," or we may be bursting "late",
-         * but either way we need to unschedule() the timer. 
+         * but either way we need to unschedule() the timer.
          *
-         * I don't like unschedule() being a side effect of this function, 
+         * I don't like unschedule() being a side effect of this function,
          * but we only have control over cases 1-4. In case 5, the caller
-         * would have to know to call unschedule() and that's just silly. 
+         * would have to know to call unschedule() and that's just silly.
          *
          * NOTE
-         * Any data in QUEUE will be lost after this function returns. 
+         * Any data in QUEUE will be lost after this function returns.
          * There is no possibility to recover from a failed HTTP request.
          *
-         *      - If connection is lost during a burst, the entire burst 
+         *      - If connection is lost during a burst, the entire burst
          *        will be lost. The event will not fire until after this
          *        function returns (due to JS). This should be the spec.
          *
@@ -294,7 +294,7 @@ var Output = (function()
                                 send(item[i][0], item[i][1]);
                         }
                 } else {
-                        /* 
+                        /*
                          * Do nothing; the data is still in the buffer
                          * and will be sent after we are enabled again.
                          */
@@ -304,14 +304,14 @@ var Output = (function()
         /**
          * Initiate an asynchronous HTTP POST request.
          *
-         * @url   : The target of the HTTP request 
+         * @url   : The target of the HTTP request
          * @str   : The data to send as the POST body
          * @return: nothing
          *
-         * NOTE 
-         * If output is disabled (no HTTP requests are possible), 
-         * the data will be scheduled on to the buffer and will be 
-         * sent when/if output is enabled again. 
+         * NOTE
+         * If output is disabled (no HTTP requests are possible),
+         * the data will be scheduled on to the buffer and will be
+         * sent when/if output is enabled again.
          *
          * Otherwise the request will be initiated right away, and
          * the data will never hit the buffer.
@@ -325,13 +325,13 @@ var Output = (function()
         function send(url, str)
         {
                 if (ENABLED === true) {
-                        Integration.http_post(url, str); 
+                        Integration.http_post(url, str);
                         send_all_scheduled();
                 } else {
                         schedule(url, str);
-                        /* 
+                        /*
                          * Option 1: schedule(url, str);
-                         * Option 2: return; the data is silently lost 
+                         * Option 2: return; the data is silently lost
                          */
                 }
         }
@@ -346,11 +346,11 @@ var Output = (function()
                 }
         });
 
-        window.addEventListener('offline', function() { 
+        window.addEventListener('offline', function() {
                 disable_sending();
         });
-        
-        window.addEventListener('online', function() { 
+
+        window.addEventListener('online', function() {
                 enable_sending();
         });
 
@@ -358,12 +358,12 @@ var Output = (function()
 
         return {
                 "schedule": schedule,
-                "send": send 
+                "send": send
         };
 })();
 
 /******************************************************************************
- * TOKEN 
+ * TOKEN
  * Handles the storage and book-keeping that controls the various
  * pageview, session, and activity tokens.
  ******************************************************************************/
@@ -385,7 +385,7 @@ var Token = (function()
         function pageview_check()
         {
                 if (PAGEVIEW === null) {
-                        PAGEVIEW = new_table(); 
+                        PAGEVIEW = new_table();
                 }
         }
 
@@ -397,7 +397,7 @@ var Token = (function()
                         SESSION = Integration.get_store("epc-session");
 
                         /* If this fails, or the data is malformed */
-                        if (!SESSION || !(":id" in SESSION) || !(":sg" in SESSION)) { 
+                        if (!SESSION || !(":id" in SESSION) || !(":sg" in SESSION)) {
                                 /* Then regenerate */
                                 SESSION = new_table();
                                 Integration.set_store("epc-session", SESSION);
@@ -406,7 +406,7 @@ var Token = (function()
                 /* If the session is over, based on our criteria */
                 if (session_timeout()) {
                         /* Then regenerate */
-                        SESSION = new_table();              
+                        SESSION = new_table();
                         Integration.set_store("epc-session", SESSION);
 
                         /* And trigger a pageview regeneration as well */
@@ -476,7 +476,7 @@ var Token = (function()
 })();
 
 /******************************************************************************
- * STREAM MANAGER 
+ * STREAM MANAGER
  ******************************************************************************/
 var Stream = (function()
 {
@@ -501,7 +501,7 @@ var Stream = (function()
 
         function is_stream_sampled(name)
         {
-                return true; 
+                return true;
         }
 
         function get_stream_property(name, property, if_dne)
@@ -514,7 +514,7 @@ var Stream = (function()
 
         function stream_active(name)
         {
-                return get_stream_property(name, "active", true); 
+                return get_stream_property(name, "active", true);
         }
 
         function stream_scope(name)
@@ -524,13 +524,13 @@ var Stream = (function()
 
         function is_event_orphaned(name, data)
         {
-                /* 
+                /*
                  * TODO: Do we even want to bother with this?
                  */
         }
 
-        function event(name, data, timestamp) 
-        { 
+        function event(name, data, timestamp)
+        {
                 if (!is_stream_enabled(name)) {
                         return false;
                 }
@@ -556,13 +556,13 @@ var Stream = (function()
                 e.$schema = STREAM[name].schema_url;
 
                 e.session  = Token.session();
-                e.pageview = Token.pageview(); 
+                e.pageview = Token.pageview();
                 e.activity = Token.activity(name, stream_scope(name));
 
                 Output.schedule('http://pai-test.wmflabs.org/log', JSON.stringify(e));
                 //Output.schedule(STREAM[name].url, JSON.stringify(e));
 
-                /* Cascade the event to child events */ 
+                /* Cascade the event to child events */
                 if (!(name in CASCADE)) {
                         CASCADE[name] = [];
                         for (var x in STREAM) {
@@ -571,7 +571,7 @@ var Stream = (function()
                                 }
                         }
                 }
-                for (var i=0; i<CASCADE[name].length; i++) { 
+                for (var i=0; i<CASCADE[name].length; i++) {
                         /* TODO: don't call is_event_orphaned more than once! */
                         event(CASCADE[name][i], data);
                 }

@@ -1,3 +1,32 @@
+/*
+ * Event Platform Client (EPC)
+ *
+ *     Designed for use with MediaWiki browser clients producing events to
+ *     the EventGate intake service.
+ *
+ * LICENSE NOTICE
+ *     Copyright (C) 2019 Wikimedia Foundation
+ *
+ *     This program is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License
+ *     as published by the Free Software Foundation; either version 2
+ *     of the License, or (at your option) any later version.
+ *
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program; if not, write to the Free Software
+ *     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ *     02110-1301, USA.
+ *
+ * AUTHORS
+ *     Jason Linehan <jlinehan@wikimedia.org>
+ *     Mikhail Popov <mpopov@wikimedia.org>
+ */
+
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.InputStreamReader;
@@ -5,8 +34,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 /******************************************************************************
- * Collect functions that will be replaced or mapped to other 
- * platform-specific functions. 
+ * Collect functions that will be replaced or mapped to other
+ * platform-specific functions.
  ******************************************************************************/
 class Integration
 {
@@ -36,7 +65,7 @@ class Integration
         }
 
 	// HTTP POST request
-	public static void http_post(String url, String body) throws Exception 
+	public static void http_post(String url, String body) throws Exception
 	{
 		URL obj = new URL(url);
 		HttpURLConnection con = (HttpURLConnection)obj.openConnection();
@@ -67,7 +96,7 @@ class Integration
 			response.append(inputLine);
 		}
 		in.close();
-		
+
 		//print result
 		System.out.println(response.toString());
 	}
