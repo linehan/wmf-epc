@@ -10,30 +10,37 @@
  *     the EventGate intake service.
  *
  * LICENSE NOTICE
- *     Copyright (C) 2019 Wikimedia Foundation
+ *     Copyright 2019 Wikimedia Foundation
  *
- *     This program is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License
- *     as published by the Free Software Foundation; either version 2
- *     of the License, or (at your option) any later version.
+ *     Redistribution and use in source and binary forms, with or without
+ *     modification, are permitted provided that the following conditions are
+ *     met:
  *
- *     This program is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
+ *     1. Redistributions of source code must retain the above copyright notice,
+ *     this list of conditions and the following disclaimer.
  *
- *     You should have received a copy of the GNU General Public License
- *     along with this program; if not, write to the Free Software
- *     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- *     02110-1301, USA.
+ *     2. Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ *     IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *     THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *     PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ *     CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *     EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *     PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ *     PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ *     LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *     NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ *     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * AUTHORS
  *     Jason Linehan <jlinehan@wikimedia.org>
  *     Mikhail Popov <mpopov@wikimedia.org>
  */
 
-function MOCK_STREAM_CONFIG()
-{
+function MOCK_STREAM_CONFIG() {
         return {
                 "edit": {
                         "stream": "edit",
@@ -74,12 +81,12 @@ function MOCK_STREAM_CONFIG()
                          * An example of a predicate filter with fields
                          * we could support.
                          */
-                        "active":true,
+                        "active": true,
                         "filter": {
                                 "user_status": ["login", "anon"],
                                 "user_agent": ["firefox", "chrome", "safari"],
                                 "wiki_lang": ["en", "cz", "jp"],
-                                "localtime":["start_time", "end_time"],
+                                "localtime": ["start_time", "end_time"],
                                 /*
                                  * A boolean value we can set in their user
                                  * settings and test for; to allow tagging of
@@ -105,20 +112,20 @@ function MOCK_STREAM_CONFIG()
  ******************************************************************************/
 
 var Integration = {
-        "get_store": function(k) {
+        "get_store": function (k) {
                 var data = window.localStorage.getItem(k);
                 return (data) ? JSON.parse(data) : {};
         },
-        "set_store": function(k, v) {
+        "set_store": function (k, v) {
                 window.localStorage.setItem(k, JSON.stringify(v));
         },
 
-        "new_id": function() {
+        "new_id": function () {
                 /* Support: IE 11 */
                 var crypto = window.crypto || window.msCrypto;
 
-                if ( crypto && crypto.getRandomValues ) {
-                        if ( typeof Uint16Array === 'function' ) {
+                if (crypto && crypto.getRandomValues) {
+                        if (typeof Uint16Array === 'function') {
                                 /*
                                  * Fill an array with 5 random values,
                                  * each of which is 16 bits.
@@ -126,32 +133,32 @@ var Integration = {
                                  * Note that Uint16Array is array-like,
                                  * but does not implement Array.
                                  */
-                                var rnds = new Uint16Array( 5 );
-                                crypto.getRandomValues( rnds );
+                                var rnds = new Uint16Array(5);
+                                crypto.getRandomValues(rnds);
                         }
                 } else {
-                        var rnds = new Array( 5 );
+                        var rnds = new Array(5);
                         /*
                          * 0x10000 is 2^16 so the operation below will return
                          * a number between 2^16 and zero
                          */
-                        for ( var i = 0; i < 5; i++ ) {
-                                rnds[ i ] = Math.floor( Math.random() * 0x10000 );
+                        for (var i = 0; i < 5; i++) {
+                                rnds[i] = Math.floor(Math.random() * 0x10000);
                         }
                 }
 
-                return  ( rnds[ 0 ] + 0x10000 ).toString( 16 ).slice( 1 ) +
-                        ( rnds[ 1 ] + 0x10000 ).toString( 16 ).slice( 1 ) +
-                        ( rnds[ 2 ] + 0x10000 ).toString( 16 ).slice( 1 ) +
-                        ( rnds[ 3 ] + 0x10000 ).toString( 16 ).slice( 1 ) +
-                        ( rnds[ 4 ] + 0x10000 ).toString( 16 ).slice( 1 );
+                return (rnds[0] + 0x10000).toString(16).slice(1) +
+                        (rnds[1] + 0x10000).toString(16).slice(1) +
+                        (rnds[2] + 0x10000).toString(16).slice(1) +
+                        (rnds[3] + 0x10000).toString(16).slice(1) +
+                        (rnds[4] + 0x10000).toString(16).slice(1);
         },
 
-        "generate_UUID_v4": function() {
+        "generate_UUID_v4": function () {
                 return "ffffffff-ffff-ffff-ffff-ffffffffffff";
         },
 
-        "http_get": function(url, callback) {
+        "http_get": function (url, callback) {
                 var xhr = new XMLHttpRequest();
                 xhr.open("GET", url, true);
                 xhr.setRequestHeader("Content-Type", "application/json");
@@ -164,7 +171,7 @@ var Integration = {
                 xhr.send();
         },
 
-        "http_post": function(url, data) {
+        "http_post": function (url, data) {
                 navigator.sendBeacon(url, data);
         }
 }
@@ -189,28 +196,24 @@ var Integration = {
  *      the radio to enter its RRC idle state and other low-power
  *      states during the time between bursts.
  ******************************************************************************/
-var Output = (function()
-{
+var Output = (function () {
         var WAIT_ITEMS = 2;
         var WAIT_MS = 2000;
 
-        var QUEUE   = [];
+        var QUEUE = [];
         var TIMEOUT = null;
         var ENABLED = true;
 
-        function enable_sending()
-        {
+        function enable_sending() {
                 ENABLED = true;
                 send_all_scheduled();
         }
 
-        function disable_sending()
-        {
+        function disable_sending() {
                 ENABLED = false;
         }
 
-        function unschedule()
-        {
+        function unschedule() {
                 clearTimeout(TIMEOUT);
         }
 
@@ -229,8 +232,7 @@ var Output = (function()
          *      If there are enough items in the queue, it will trigger a burst.
          *      Otherwise, it will reset the timeout which triggers a burst.
          */
-        function schedule(url, str)
-        {
+        function schedule(url, str) {
                 QUEUE.push([url, str]);
 
                 if (ENABLED === true) {
@@ -284,13 +286,12 @@ var Output = (function()
          *        burst will still be sent. The disablement will not be
          *        handled until after this function returns (due to JS).
          */
-        function send_all_scheduled()
-        {
+        function send_all_scheduled() {
                 unschedule();
 
                 if (ENABLED === true) {
                         var item = QUEUE.splice(0, QUEUE.length);
-                        for (var i=0; i<item.length; i++) {
+                        for (var i = 0; i < item.length; i++) {
                                 send(item[i][0], item[i][1]);
                         }
                 } else {
@@ -322,8 +323,7 @@ var Output = (function()
          * operation to take advantage of the fact that we know the
          * radio is now awake.
          */
-        function send(url, str)
-        {
+        function send(url, str) {
                 if (ENABLED === true) {
                         Integration.http_post(url, str);
                         send_all_scheduled();
@@ -336,21 +336,21 @@ var Output = (function()
                 }
         }
 
-        window.addEventListener('pagehide', function() {
+        window.addEventListener('pagehide', function () {
                 send_all_scheduled();
         });
 
-        document.addEventListener('visibilitychange', function() {
+        document.addEventListener('visibilitychange', function () {
                 if (document.hidden) {
                         send_all_scheduled();
                 }
         });
 
-        window.addEventListener('offline', function() {
+        window.addEventListener('offline', function () {
                 disable_sending();
         });
 
-        window.addEventListener('online', function() {
+        window.addEventListener('online', function () {
                 enable_sending();
         });
 
@@ -367,30 +367,25 @@ var Output = (function()
  * Handles the storage and book-keeping that controls the various
  * pageview, session, and activity tokens.
  ******************************************************************************/
-var Token = (function()
-{
+var Token = (function () {
         var PAGEVIEW = null;
         var SESSION = null;
 
-        function session_timeout_condition()
-        {
+        function session_timeout_condition() {
                 return false;
         }
 
-        function new_table()
-        {
+        function new_table() {
                 return { ":id": new_id(), ":sg": 1 };
         }
 
-        function pageview_check()
-        {
+        function pageview_check() {
                 if (PAGEVIEW === null) {
                         PAGEVIEW = new_table();
                 }
         }
 
-        function session_check()
-        {
+        function session_check() {
                 /* A fresh execution will have SESSION set to null */
                 if (SESSION === null) {
                         /* Attempt to load SESSION from persistent store */
@@ -414,20 +409,17 @@ var Token = (function()
                 }
         }
 
-        function session()
-        {
+        function session() {
                 session_check();
                 return SESSION[":id"];
         }
 
-        function pageview()
-        {
+        function pageview() {
                 pageview_check();
                 return PAGEVIEW[":id"];
         }
 
-        function activity(name, scopename)
-        {
+        function activity(name, scopename) {
                 var id, sn;
 
                 if (scopename === "session") {
@@ -437,7 +429,7 @@ var Token = (function()
                                 Integration.set_store("epc-session", SESSION);
                         }
                         sn = SESSION[name];
-                        return id + (sn + 0x10000).toString( 16 ).slice( 1 );
+                        return id + (sn + 0x10000).toString(16).slice(1);
                 }
                 if (scopename === "pageview") {
                         id = pageview();
@@ -445,16 +437,15 @@ var Token = (function()
                                 PAGEVIEW[name] = PAGEVIEW[":sg"]++;
                         }
                         sn = PAGEVIEW[name];
-                        return id + (sn + 0x10000).toString( 16 ).slice( 1 );
+                        return id + (sn + 0x10000).toString(16).slice(1);
                 }
                 return null;
         }
 
-        function activity_reset(name)
-        {
+        function activity_reset(name) {
                 pageview_check();
                 if (name in PAGEVIEW) {
-                        delete(PAGEVIEW[name]);
+                        delete (PAGEVIEW[name]);
                         /* Only one scope per event, so if it was a pageview
                          * event, we don't need to check the session data */
                         return;
@@ -462,75 +453,66 @@ var Token = (function()
 
                 session_check();
                 if (name in SESSION) {
-                        delete(SESSION[name]);
+                        delete (SESSION[name]);
                         Integration.set_store("epc-session", SESSION);
                 }
         }
 
         return {
-                "session" : session,
+                "session": session,
                 "pageview": pageview,
                 "activity": activity,
-                "activity_reset":activity_reset,
+                "activity_reset": activity_reset,
         };
 })();
 
 /******************************************************************************
  * STREAM MANAGER
  ******************************************************************************/
-var Stream = (function()
-{
+var Stream = (function () {
         var STREAM = {};
         var CASCADE = {};
 
-        function init()
-        {
+        function init() {
                 STREAM = MOCK_STREAM_CONFIG();
                 //Integration.http_get("https://pai-test.wmflabs.org/streams", function(json) {
-                        //STREAM = json;
+                //STREAM = json;
                 //});
         }
 
-        function is_stream_enabled(name)
-        {
+        function is_stream_enabled(name) {
                 if (EPC_ENABLED() && (name in STREAM) && stream_active(name)) {
                         return true;
                 }
                 return false;
         }
 
-        function is_stream_sampled(name)
-        {
+        function is_stream_sampled(name) {
                 return true;
         }
 
-        function get_stream_property(name, property, if_dne)
-        {
+        function get_stream_property(name, property, if_dne) {
                 if ((name in STREAM) && (property in STREAM[name])) {
                         return STREAM[name][property];
                 }
                 return if_dne;
         }
 
-        function stream_active(name)
-        {
+        function stream_active(name) {
                 return get_stream_property(name, "active", true);
         }
 
-        function stream_scope(name)
-        {
+        function stream_scope(name) {
                 return get_stream_property(name, "scope", "none");
         }
 
-        function is_event_orphaned(name, data)
-        {
+        function is_event_orphaned(name, data) {
                 /*
                  * TODO: Do we even want to bother with this?
                  */
         }
 
-        function event(name, data, timestamp)
-        {
+        function event(name, data, timestamp) {
                 if (!is_stream_enabled(name)) {
                         return false;
                 }
@@ -546,16 +528,16 @@ var Stream = (function()
                 var e = data;
 
                 e.meta = {
-                        "id"    : Integration.generate_UUID_v4(),
-                        "dt"    : timestamp,
+                        "id": Integration.generate_UUID_v4(),
+                        "dt": timestamp,
                         "domain": MOCK_WIKI_DOMAIN(),
-                        "uri"   : MOCK_WIKI_URI(),
+                        "uri": MOCK_WIKI_URI(),
                         "stream": STREAM[name].stream_name,
                 };
 
                 e.$schema = STREAM[name].schema_url;
 
-                e.session  = Token.session();
+                e.session = Token.session();
                 e.pageview = Token.pageview();
                 e.activity = Token.activity(name, stream_scope(name));
 
@@ -566,12 +548,12 @@ var Stream = (function()
                 if (!(name in CASCADE)) {
                         CASCADE[name] = [];
                         for (var x in STREAM) {
-                                if (x.indexOf(name+".") === 0) {
+                                if (x.indexOf(name + ".") === 0) {
                                         CASCADE[name].push(x);
                                 }
                         }
                 }
-                for (var i=0; i<CASCADE[name].length; i++) {
+                for (var i = 0; i < CASCADE[name].length; i++) {
                         /* TODO: don't call is_event_orphaned more than once! */
                         event(CASCADE[name][i], data);
                 }

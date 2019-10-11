@@ -10,22 +10,30 @@
  *     the EventGate intake service.
  *
  * LICENSE NOTICE
- *     Copyright (C) 2019 Wikimedia Foundation
+ *     Copyright 2019 Wikimedia Foundation
  *
- *     This program is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License
- *     as published by the Free Software Foundation; either version 2
- *     of the License, or (at your option) any later version.
+ *     Redistribution and use in source and binary forms, with or without
+ *     modification, are permitted provided that the following conditions are
+ *     met:
  *
- *     This program is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
+ *     1. Redistributions of source code must retain the above copyright notice,
+ *     this list of conditions and the following disclaimer.
  *
- *     You should have received a copy of the GNU General Public License
- *     along with this program; if not, write to the Free Software
- *     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- *     02110-1301, USA.
+ *     2. Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ *     IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *     THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *     PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ *     CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *     EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *     PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ *     PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ *     LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *     NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ *     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * AUTHORS
  *     Jason Linehan <jlinehan@wikimedia.org>
@@ -40,16 +48,15 @@ import java.nio.charset.StandardCharsets;
 /******************************************************************************
  * EPC - Public library interface.
  *
- * This class ties together the library components, each of which is
- * otherwise totally encapsulated.
+ * This class ties together the library components, each of which is otherwise
+ * totally encapsulated.
  ******************************************************************************/
-class EPC
-{
+class EPC {
         /**
          * Remote endpoint to fetch the stream configuration from.
          */
-        //static String STREAM_CONFIG_URL="https://pai-test.wmflabs.org/streams";
-        static String STREAM_CONFIG_URL="http://olm.ec/streamconfig.json";
+        // static String STREAM_CONFIG_URL="https://pai-test.wmflabs.org/streams";
+        static String STREAM_CONFIG_URL = "http://olm.ec/streamconfig.json";
 
         /**
          * Will be instantiated using the stream configuration.
@@ -66,38 +73,31 @@ class EPC
          */
         Output output = new Output();
 
-
         /**
          * Store events until the library is finished initializing.
          *
-         * The EPC library makes an HTTP request to a remote stream
-         * configuration service for information about how to evaluate
-         * incoming event data. Until this initialization is complete,
-         * we store any incoming events in this buffer.
+         * The EPC library makes an HTTP request to a remote stream configuration
+         * service for information about how to evaluate incoming event data. Until this
+         * initialization is complete, we store any incoming events in this buffer.
          */
         LinkedList<JSONObject> input_buffer = new LinkedList<JSONObject>();
 
         /**
          * Log an event to the input buffer.
          *
-         * @name  : Name of the event stream to send the event to.
+         * @name : Name of the event stream to send the event to.
          * @datum : Argument list of alternating string keys and typed values
          * @throws: RuntimeException
          * @return: Nothing
          *
-         * USAGE
-         * The reason for the seemingly strange argument list pattern is
-         * to provide convenience when specifying values of different types
-         * that will end up in a JSONObject:
+         *          USAGE The reason for the seemingly strange argument list pattern is
+         *          to provide convenience when specifying values of different types
+         *          that will end up in a JSONObject:
          *
-         *      EPC.event("edit",
-         *              "username", "Dan",
-         *              "is_happy", true,
-         *              "edit_len", 13
-         *      );
+         *          EPC.event("edit", "username", "Dan", "is_happy", true, "edit_len",
+         *          13 );
          */
-        public void event(String name, Object... datum) throws RuntimeException
-        {
+        public void event(String name, Object... datum) throws RuntimeException {
                 JSONObject meta;
                 JSONObject data;
                 int i;
@@ -125,13 +125,12 @@ class EPC
                 data.put("pageview_id", token.pageview());
 
                 /* Add the data fields from the argument list */
-                for (i=0; i<datum.length; i+= 2) {
+                for (i = 0; i < datum.length; i += 2) {
                         try {
                                 data.put(datum[i].toString(), datum[i + 1]);
                         } catch (Exception e) {
                                 /*
-                                 * The type of datum[i + 1] was probably
-                                 * not mappable to a JSON-supported type.
+                                 * The type of datum[i + 1] was probably not mappable to a JSON-supported type.
                                  */
                                 throw new RuntimeException(e);
                         }
@@ -148,13 +147,12 @@ class EPC
         /**
          * Fetch stream configuration and use it to instantiate Stream.
          */
-        public void init()
-        {
+        public void init() {
                 JSONObject conf;
                 JSONObject ev;
-		String  json;
-                URL     url;
-		String  charset;
+                String json;
+                URL url;
+                String charset;
 
                 try {
                         url = new URL(STREAM_CONFIG_URL);
@@ -162,22 +160,22 @@ class EPC
                         throw new RuntimeException(e);
                 }
 
-		charset = StandardCharsets.UTF_8.toString();
+                charset = StandardCharsets.UTF_8.toString();
 
                 /*
-                 * TODO: This code is bad and will be taken out and
-                 * replaced with a common HTTP GET requester.
+                 * TODO: This code is bad and will be taken out and replaced with a common HTTP
+                 * GET requester.
                  */
-		try (Scanner scanner = new Scanner(url.openStream(), charset)) {
-			/*
-			 * Regex '\\A' matches beginning of input.
-			 * This tells Scanner to tokenize the entire stream.
-			 */
-			scanner.useDelimiter("\\A");
-			json = scanner.hasNext() ? scanner.next() : "";
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+                try (Scanner scanner = new Scanner(url.openStream(), charset)) {
+                        /*
+                         * Regex '\\A' matches beginning of input. This tells Scanner to tokenize the
+                         * entire stream.
+                         */
+                        scanner.useDelimiter("\\A");
+                        json = scanner.hasNext() ? scanner.next() : "";
+                } catch (Exception e) {
+                        throw new RuntimeException(e);
+                }
 
                 System.out.println(json);
 
@@ -206,5 +204,5 @@ class EPC
                 } catch (Exception e) {
                         throw new RuntimeException(e);
                 }
-	}
+        }
 }

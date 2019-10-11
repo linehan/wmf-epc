@@ -1,27 +1,35 @@
 /*
- * Event Platform Client (EPC) 
+ * Event Platform Client (EPC)
  *
- * DESCRIPTION 
- *     Designed for use with Wikipedia Android application producing events to 
+ * DESCRIPTION
+ *     Designed for use with Wikipedia Android application producing events to
  *     the EventGate intake service.
  *
  * LICENSE NOTICE
- *     Copyright (C) 2019 Wikimedia Foundation 
+ *     Copyright 2019 Wikimedia Foundation
  *
- *     This program is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License
- *     as published by the Free Software Foundation; either version 2
- *     of the License, or (at your option) any later version.
+ *     Redistribution and use in source and binary forms, with or without
+ *     modification, are permitted provided that the following conditions are
+ *     met:
  *
- *     This program is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
+ *     1. Redistributions of source code must retain the above copyright notice,
+ *     this list of conditions and the following disclaimer.
  *
- *     You should have received a copy of the GNU General Public License
- *     along with this program; if not, write to the Free Software
- *     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 
- *     02110-1301, USA.
+ *     2. Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ *     IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *     THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *     PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ *     CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *     EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *     PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ *     PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ *     LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *     NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ *     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * AUTHORS
  *     Jason Linehan <jlinehan@wikimedia.org>
@@ -32,12 +40,10 @@ import java.util.HashMap;
 import java.util.Random;
 
 /******************************************************************************
- * TOKEN 
- * Handles the storage and book-keeping that controls the various
+ * TOKEN Handles the storage and book-keeping that controls the various
  * pageview, session, and activity tokens.
  ******************************************************************************/
-public class Token
-{
+public class Token {
         /* Cache the ID values */
         String PAGEVIEW_ID = null;
         String SESSION_ID = null;
@@ -53,31 +59,21 @@ public class Token
         /* Used to generate random numbers in new_id() */
         Random prng = null;
 
-        private String new_id()
-        {
+        private String new_id() {
                 if (prng == null) {
                         prng = new Random();
                 }
-                 
-                return String.format("%04x%04x%04x%04x%04x%04x%04x%04x",
-                        prng.nextInt(65535),
-                        prng.nextInt(65535),
-                        prng.nextInt(65535),
-                        prng.nextInt(65535),
-                        prng.nextInt(65535),
-                        prng.nextInt(65535),
-                        prng.nextInt(65535),
-                        prng.nextInt(65535)
-                );
+
+                return String.format("%04x%04x%04x%04x%04x%04x%04x%04x", prng.nextInt(65535), prng.nextInt(65535),
+                                prng.nextInt(65535), prng.nextInt(65535), prng.nextInt(65535), prng.nextInt(65535),
+                                prng.nextInt(65535), prng.nextInt(65535));
         }
 
-        private boolean session_timeout()
-        {
+        private boolean session_timeout() {
                 return false;
         }
 
-        private void pageview_check()
-        {
+        private void pageview_check() {
                 if (PAGEVIEW_ID == null) {
                         PAGEVIEW_ID = new_id();
                         PAGEVIEW_SQ = new HashMap<String, Integer>();
@@ -85,17 +81,16 @@ public class Token
                 }
         }
 
-        private void session_check()
-        {
+        private void session_check() {
                 /* A fresh execution will have SESSION set to null */
                 if (SESSION_ID == null) {
-                        /* Attempt to load SESSION from persistent store */ 
+                        /* Attempt to load SESSION from persistent store */
                         SESSION_ID = Integration.get_store("epc-session-id");
                         SESSION_SQ = Integration.get_store("epc-session-sq");
                         SESSION_CL = Integration.get_store("epc-session-cl");
 
-                        /* If this fails, or the data is malformed... */ 
-                        if (SESSION_ID == null || SESSION_SQ == null) { 
+                        /* If this fails, or the data is malformed... */
+                        if (SESSION_ID == null || SESSION_SQ == null) {
                                 SESSION_ID = new_id();
                                 SESSION_SQ = new HashMap<String, Integer>();
                                 SESSION_CL = 1;
@@ -121,20 +116,17 @@ public class Token
                 }
         }
 
-        public String session()
-        {
+        public String session() {
                 session_check();
                 return SESSION_ID;
         }
 
-        public String pageview()
-        {
+        public String pageview() {
                 pageview_check();
                 return PAGEVIEW_ID;
         }
 
-        public String activity(String name, String scopename)
-        {
+        public String activity(String name, String scopename) {
                 String id;
                 Integer sn;
 
@@ -161,13 +153,14 @@ public class Token
                 return null;
         }
 
-        public void activity_reset(String name)
-        {
+        public void activity_reset(String name) {
                 pageview_check();
                 if (PAGEVIEW_SQ.containsKey(name)) {
                         PAGEVIEW_SQ.remove(name);
-                        /* Only one scope per event, so if it was a pageview
-                         * event, we don't need to check the session data */
+                        /*
+                         * Only one scope per event, so if it was a pageview event, we don't need to
+                         * check the session data
+                         */
                         return;
                 }
 
