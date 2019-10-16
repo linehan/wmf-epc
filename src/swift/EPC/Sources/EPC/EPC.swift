@@ -46,6 +46,7 @@ import Foundation
  * Event Platform Client public library interface. This class ties together the library components, each of which
  * is otherwise totally encapsulated.
  */
+@available(iOS 10, OSX 10.12, *)
 public class EPC: StreamManager {
 
     // MARK: - Properties
@@ -129,8 +130,7 @@ public class EPC: StreamManager {
 
         meta["id"] = Integration.shared.get_UUID_v4()
         meta["dt"] = Integration.shared.get_iso_8601_timestamp()
-        meta["domain"] = Integration.shared.get_wiki_domain()
-        meta["uri"] = Integration.shared.get_wiki_uri()
+        meta["domain"] = Integration.shared.get_domain()
         meta["stream"] = name
 
         data["meta"] = meta

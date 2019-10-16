@@ -40,6 +40,7 @@ import Foundation
 /**
  * Buffer outgoing HTTP requests
  */
+@available(iOS 10, OSX 10.12, *)
 class Output {
     
     /* CONFIGURABLE PARAMETERS */

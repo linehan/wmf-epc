@@ -40,11 +40,13 @@ import Foundation
 /**
  * Collect functions that will be replaced or mapped to other platform-specific functions.
  */
+@available(iOS 10, OSX 10.12, *)
 class Integration {
 
     public static let shared = Integration() // singleton
 
     fileprivate let session: URLSession
+    private let iso8601_formatter = ISO8601DateFormatter()
 
     private init(URLSession: URLSession = .shared) {
         self.session = URLSession
@@ -80,17 +82,15 @@ class Integration {
         task.resume()
     }
 
-    public func get_wiki_uri() -> String {
-        return "en"
-    }
-    public func get_wiki_domain() -> String {
-        return "wikipedia.org"
+    public func get_domain() -> String {
+        return "en.wikipedia.org"
     }
     public func get_UUID_v4() -> String {
-        return "ffffffff-ffff-ffff-ffff-ffffffffffff"
+        // Initializes & returns a new UUID with RFC 4122 version 4 random bytes
+        return UUID().uuidString
     }
     public func get_iso_8601_timestamp() -> String {
-        return "1997"
+        return iso8601_formatter.string(from: Date())
     }
 
     public func http_post(_ url: String, _ body: String) throws -> Void {
