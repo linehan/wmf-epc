@@ -3,8 +3,6 @@ import java.io.DataOutputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-/* For PRNG */
-import java.util.Random;
 
 /******************************************************************************
  * Collect functions that will be replaced or mapped to other 
@@ -12,32 +10,6 @@ import java.util.Random;
  ******************************************************************************/
 class Integration
 {
-        private static prng = new Random(); 
-
-        public static String new_id()
-        {
-                if (prng == null) {
-                        prng = new Random();
-                }
-                 
-                return String.format("%04x%04x%04x%04x%04x%04x%04x%04x",
-                        prng.nextInt(65535),
-                        prng.nextInt(65535),
-                        prng.nextInt(65535),
-                        prng.nextInt(65535),
-                        prng.nextInt(65535),
-                        prng.nextInt(65535),
-                        prng.nextInt(65535),
-                        prng.nextInt(65535)
-                );
-        }
-
-        public static boolean session_timeout()
-        {
-                /* TODO: For detecting session timeout */
-                return false;
-        }
-
         public static String get_stream_config()
         {
                 return "{edit: {stream: \"edit\",scope: \"session\",sample: 0.06,active: true,url: \"/log\", schema_url:'foo.foo' }}";
@@ -146,5 +118,51 @@ class Integration
         {
                 /* Do nothing */
                 return null;
+        }
+
+
+        public static Map<String, Object> jsonToMap(JSONObject json) throws JSONException {
+                Map<String, Object> retMap = new HashMap<String, Object>();
+
+                if (json != JSONObject.NULL) {
+                        retMap = toMap(json);
+                }
+
+                return retMap;
+        }
+
+        public static Map<String, Object> toMap(JSONObject object) throws JSONException {
+                Map<String, Object> map = new HashMap<String, Object>();
+
+                Iterator<String> keysItr = object.keys();
+                    
+                while (keysItr.hasNext()) {
+                        String key = keysItr.next();
+                        Object value = object.get(key);
+
+                        if (value instanceof JSONArray) {
+                                value = toList((JSONArray) value);
+                        } else if (value instanceof JSONObject) {
+                                value = toMap((JSONObject) value);
+                        }
+                        map.put(key, value);
+                }
+                return map;
+        }
+
+        public static List<Object> toList(JSONArray array) throws JSONException {
+                List<Object> list = new ArrayList<Object>();
+                        
+                for (int i = 0; i < array.length(); i++) {
+                        Object value = array.get(i);
+
+                        if (value instanceof JSONArray) {
+                                value = toList((JSONArray) value);
+                        } else if (value instanceof JSONObject) {
+                                value = toMap((JSONObject) value);
+                        }
+                        list.add(value);
+                }
+                return list;
         }
 }

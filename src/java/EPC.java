@@ -37,167 +37,329 @@ import java.net.URL;
 import java.util.Scanner;
 import java.nio.charset.StandardCharsets;
 
-/******************************************************************************
- * EPC - Public library interface.
- *
- * This class ties together the library components, each of which is
- * otherwise totally encapsulated. 
- ******************************************************************************/
+import java.util.Map;
+import java.util.HashMap;
+
 class EPC
 {
-        /**
-         * Remote endpoint to fetch the stream configuration from.
-         */
-        //static String STREAM_CONFIG_URL="https://pai-test.wmflabs.org/streams";
-        static String STREAM_CONFIG_URL="http://olm.ec/streamconfig.json";
+        Map<String, Object>            S           = new HashMap<String, Object>();
+        Map<String, List<String>>      C           = new HashMap<String, List<String>>();
+        LinkedList<Object[]> InputBuffer = new LinkedList<Object[]>();
 
-        /**
-         * Will be instantiated using the stream configuration.
-         */
-        Stream stream = null;
-
-        /**
-         * Will hold and manage all the token and identifier caches
-         */
-        Token token = new Token();
-
-        /**
-         * Will buffer and schedule the transmission of events over HTTP
-         */
-        Output output = new Output();
-
-        /**
-         * Store events until the library is finished initializing.
-         *
-         * The EPC library makes an HTTP request to a remote stream 
-         * configuration service for information about how to evaluate
-         * incoming event data. Until this initialization is complete,
-         * we store any incoming events in this buffer.
-         */
-        LinkedList<JSONObject> input_buffer = new LinkedList<JSONObject>();
-
-        /** 
-         * A do-nothing private constructor to enforce singleton-ness.
-         */
         private void EPC(void)
         {
-                /* Nothing */
         }
 
-        /**
-         * Log an event to the input buffer.
-         *
-         * @name  : Name of the event stream to send the event to.
-         * @datum : Argument list of alternating string keys and typed values
-         * @throws: RuntimeException
-         * @return: Nothing
-         *
-         * USAGE 
-         * The reason for the seemingly strange argument list pattern is
-         * to provide convenience when specifying values of different types
-         * that will end up in a JSONObject:
-         *
-         *      EPC.event("edit", 
-         *              "username", "Dan",      
-         *              "is_happy", true,
-         *              "edit_len", 13
-         *      );
-         */
-        public void event(String name, Object... datum) throws RuntimeException 
+        public void event(String name, Object... arg) throws RuntimeException 
         {
-                JSONObject meta;
-                JSONObject data;
-                int i;
-
-                if (stream != null) {
-                        if (!stream.is_enabled(name)) {
-                                return;
-                        }
-                        if (!stream.is_sampled(name)) {
-                                return;
-                        }
+                if (!S.containsKey(n)) {
+                        /*
+                         * Events for (as-yet) unconfigured streams are
+                         * placed on the InputBuffer
+                         */
+                        InputBuffer.add(new Object[]{ n, arg });
+                        return;
                 }
 
-                meta = new JSONObject();
-                data = new JSONObject();
+                if (S.get(n).get("is_available") === false) {
+                        /*
+                         * The stream is configured as unavailable,
+                         * and will not receive events.
+                         */
+                        return;
+                }
 
-                /* 
-                 * TODO:
-                 * Technically, this stuff is all WMF-centric. In order
-                 * to make the library fully generic, we would simply need
-                 * to have this factored out into a separate 'WMF event'
-                 * kind of thing.
+                /*
+                 * (1) AssociationController
                  */
-                meta.put("id", Integration.get_UUID_v4());
-                meta.put("dt", Integration.get_iso_8601_timestamp());
-                meta.put("domain", Integration.get_wiki_domain());
-                meta.put("uri", Integration.get_wiki_uri());
-                meta.put("stream", name);
 
-                data.put("meta", meta);
-                data.put("session_id", token.session());
-                data.put("pageview_id", token.pageview());
-
-                /* Add the data fields from the argument list */ 
-                for (i=0; i<datum.length; i+= 2) {
-                        try {
-                                data.put(datum[i].toString(), datum[i + 1]); 
-                        } catch (Exception e) {
-                                /* 
-                                 * The type of datum[i + 1] was probably
-                                 * not mappable to a JSON-supported type. 
-                                 */
-                                throw new RuntimeException(e);
-                        }
+                if (!S.get(n).get("scope").equals("session")) {
+                        S.get(n).put("scope", "pageview");
+                        String sampleID = AssociationController.pageviewID();
+                } else {
+                        String sampleID = AssociationController.sessionID();
                 }
 
-                if (stream != null) {
-                        data.put("activity_id", token.activity(name, stream.scope(name)));
-                        output.schedule(stream.url(name), data.toString());
-                } else {
-                        input_buffer.add(data);
+                /*
+                 * (2) SamplingController 
+                 */
+
+                if (Sampling.in_sample(sampleID, S.get(n).get("sampling"))) {
+
+                        /*
+                         * (3) Other processing and instrumentation
+                         */
+
+                        JSONObject m = new JSONObject();
+                        JSONObject d = new JSONObject();
+                        int i;
+
+                        for (i=0; i<arg.length; i+= 2) {
+                                try {
+                                        d.put(arg[i].toString(), arg[i+1]); 
+                                } catch (Exception e) {
+                                        /* arg[i+1] not a JSON-compat type */ 
+                                        throw new RuntimeException(e);
+                                }
+                        }
+
+                        d.put("session", AssociationController.sessionID());
+                        d.put("pageview", AssociationController.pageviewID());
+                        d.put("activity", AssociationController.activityID(n, S.get(n).get("scope")));
+
+                        m.put("id", Integration.get_UUID_v4());
+                        m.put("dt", Integration.get_iso_8601_timestamp());
+                        m.put("domain", Integration.get_wiki_domain());
+                        m.put("uri", Integration.get_wiki_uri());
+                        m.put("stream", n);
+
+                        d.put("meta", m);
+
+                        /* TODO InstrumentationModule.process(n, d) */
+
+                        OutputBuffer.schedule(S.get(n).get("url"), d.toString());
+                }
+
+                /*
+                 * Cascade
+                 */
+
+                for (String x : C.get(n)) {
+                        event(x, /*arguments*/);
                 }
         }
 
-        /**
-         * Fetch stream configuration and use it to instantiate Stream.
-         */ 
-        public void initialize()
+        public void streams(String json_string_config)
         {
-                JSONObject conf;
-                JSONObject ev;
-		String  json;
+                JSONObject json = new JSONObject(json_string_config);
 
-		try {
-			json = Integration.http_get(STREAM_CONFIG_URL);
-		} catch (Exception e) {
-			json = "";
-		}
+                /* FIXME: Clobbers; this isn't what we want */
+                S.putAll(Integration.jsonToMap(json));
 
-                try {
-                        conf = new JSONObject(json);
+                C.clear();
 
-                        stream = new Stream(conf);
-
-                        /* Pass all the events on the input buffer */
-                        while ((ev = input_buffer.pollFirst()) != null) {
-                                JSONObject meta = ev.getJSONObject("meta");
-                                String name = meta.getString("stream");
-                                String scope = stream.scope(name);
-
-                                if (!stream.is_enabled(name)) {
-                                        continue;
+                for (String x : S.keySet()) {
+                        C.put(x, new List<String>());
+                        for (String y : S.keySet()) {
+                                if (y.startsWith(x+".")) {
+                                        C.get(x).add(y);
                                 }
-                                if (!stream.is_sampled(name)) {
-                                        continue;
-                                }
-
-                                ev.put("activity_id", token.activity(name, scope));
-
-                                output.schedule(stream.url(name), ev.toString());
                         }
-                } catch (Exception e) {
-                        throw new RuntimeException(e);
                 }
+                
+                /* TODO: Try inputbuffer flush here */
 	}
+
+        /**********************************************************************
+         * Handles the storage and book-keeping that controls the various
+         * pageview, session, and activity tokens.
+         *********************************************************************/
+        class AssociationController 
+        {
+                /**
+                 * Data used to build pageview IDs
+                 */
+                String               P_TOKEN = null;
+                Integer              P_CLOCK = 1;
+                Map<String, Integer> P_TABLE = null;
+
+                /**
+                 * Data used to build session IDs
+                 */
+                String               S_TOKEN = null;
+                Integer              S_CLOCK = 1;
+                Map<String, Integer> S_TABLE = null;
+
+                /* Called by whatever process detects session expiry */
+                public void begin_new_session()
+                {
+                        /* S_TOKEN diagnoses session reset */
+                        S_TOKEN = null;
+                        Integration.del_store("s_token"); // TODO: Write fn
+
+                        /* P_TOKEN diagnoses pageview reset */
+                        P_TOKEN = null;
+                }
+
+                public void begin_new_activity(String n)
+                {
+                        if (P_TABLE != null && P_TABLE.containsKey(n)) {
+                                P_TABLE.remove(n);
+                                /* If it was in P_TABLE, it's not in S_TABLE */
+                                return;
+                        }
+
+                        /* Make sure we have loaded from persistence */ 
+                        sessionID();
+
+                        if (S_TABLE.containsKey(n)) {
+                                S_TABLE.remove(n);
+                                Integration.set_store("s_table", S_TABLE);
+                        }
+                }
+
+                public String sessionID()
+                {
+                        /* A fresh execution will have SESSION set to null */
+                        if (S_TOKEN == null) {
+                                /* Try load SESSION from persistent store */ 
+                                S_TOKEN = Integration.get_store("s_token");
+                                S_TABLE = Integration.get_store("s_table");
+                                S_CLOCK = Integration.get_store("s_clock");
+
+                                /* If this fails... */ 
+                                if (S_TOKEN == null) { 
+                                        /* Generate a new session */
+                                        S_TOKEN = Integration.new_id();
+                                        S_TABLE = new HashMap<String, Integer>();
+                                        S_CLOCK = 1;
+                                        Integration.set_store("s_token", S_TOKEN);
+                                        Integration.set_store("s_table", S_TABLE);
+                                        Integration.set_store("s_clock", S_CLOCK);
+                                }
+                        }
+                        return S_TOKEN;
+                }
+
+                public String pageviewID()
+                {
+                        if (P_TOKEN == null) {
+                                P_TOKEN = Integration.new_id();
+                                P_TABLE = new HashMap<String, Integer>();
+                                P_CLOCK = 1;
+                        }
+                        return P_TOKEN;
+                }
+
+                public String activityID(String n, String scope_name)
+                {
+                        if (scope.equals("session")) {
+                                tok = sessionID();
+                                if (!S_TABLE.containsKey(n)) {
+                                        S_TABLE.put(n, S_CLOCK);
+                                        S_CLOCK = S_CLOCK + 1;
+                                        Integration.set_store("s_table", S_TABLE);
+                                        Integration.set_store("s_clock", S_CLOCK);
+                                }
+                                inc = S_TABLE.get(n);
+                        } else {
+                                tok = pageviewID();
+                                if (!P_TABLE.containsKey(n)) {
+                                        P_TABLE.put(n, P_CLOCK);
+                                        P_CLOCK = P_CLOCK + 1;
+                                }
+                                inc = P_TABLE.get(n);
+                        }
+
+                        return String.format("%s%04x", tok, inc);
+                }
+        }
+
+        /**********************************************************************
+         * Hmm
+         *********************************************************************/
+        public class OutputBuffer
+        { 
+                private static int WAIT_ITEMS = 10;
+                private static int WAIT_MS    = 2000;
+
+                private boolean ENABLED = true;
+                private LinkedList<String[]> QUEUE = new LinkedList();
+                private Timer TIMER;
+
+                private class Task extends TimerTask
+                {
+                        /* Called when the timer fires (see Java TimerTask) */
+                        public void run() 
+                        {
+                                send_all_scheduled();
+                        }
+                }
+
+                public void send_all_scheduled()
+                {
+                        if (TIMER != null) {
+                                TIMER.cancel();
+                        }
+
+                        String[] item = new String[2];
+
+                        if (ENABLED == true) {
+                                while ((item = QUEUE.poll()) != null) {
+                                        send(item[0], item[1]);
+                                }
+                        } else {
+                                /* 
+                                 * Do nothing; the data is still in the queue 
+                                 * and will be sent after we are enabled again.
+                                 */
+                        }
+                }
+
+                public void schedule(String url, String str) 
+                {
+                        /* An array of length 2 containing the two arguments */ 
+                        String[] item = { url, str };
+
+                        QUEUE.add(item);
+
+                        if (ENABLED == true) {
+                                /* 
+                                 * >= because we might have been disabled and 
+                                 * accumulated who knows how many without sending.
+                                 */
+                                if (QUEUE.size() >= WAIT_ITEMS) {
+                                        send_all_scheduled();
+                                } else {
+                                        if (TIMER != null) {
+                                                TIMER.cancel();
+                                        }
+                                        TIMER = new Timer();
+                                        /* See above for definition of Task() */
+                                        TIMER.schedule(new Task(), WAIT_MS);
+                                }
+                        }
+                }
+
+                public void send(String url, String str)
+                {
+                        if (ENABLED == true) {
+                                try {
+                                        Integration.http_post(url, str);
+                                } catch (Exception e) {
+                                        /* dunno */
+                                }
+                                send_all_scheduled();
+                        } else {
+                                schedule(url, str);
+                                /* 
+                                 * Option 1: schedule(url, str);
+                                 * Option 2: return; the data is silently lost 
+                                 */
+                        }
+                }
+
+                public void enable_sending()
+                {
+                        ENABLED = true;
+                        send_all_scheduled();
+                }
+
+                public void disable_sending()
+                {
+                        ENABLED = false;
+                }
+        }
+
+        /**********************************************************************
+         * Hmm
+         *********************************************************************/
+
+        class Sampling 
+        {
+                static boolean in_sample(String token, Object sampling_config)
+                {
+                        return true;
+                }
+        }
 }
