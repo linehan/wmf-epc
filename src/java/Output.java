@@ -3,7 +3,7 @@
  *
  * DESCRIPTION 
  *     Designed for use with Wikipedia Android application producing events to 
- *     the EventGate intake service.
+ *     the EventGate intake service of the WMF Modern Event Platform.
  *
  * LICENSE NOTICE
  *     Copyright (C) 2019 Wikimedia Foundation 
@@ -36,26 +36,40 @@ import java.util.TimerTask;
  ******************************************************************************/
 public class Output
 { 
-        /* CONFIGURABLE PARAMETERS */
-        /* FOR MORE INFO, SEE OUTPUT BUFFERING SPEC */
+        /**
+         * Number of items allowed to accumulate before timer won't interrupt.
+         * (User-configurable)
+         */
         private static int WAIT_ITEMS = 10;
+
+        /**
+         * Number of milliseconds to wait for new items.
+         * (User-configurable)
+         */
         private static int WAIT_MS    = 2000;
 
+        /**
+         * If FALSE, the buffer can never be emptied.
+         * (Controlled internally) 
+         */
         private boolean ENABLED = true;
 
-        /* Queue to hold the [url, body] pairs that will be sent */
+        /**
+         * The queue structure holds items as [url, body] pairs 
+         */
         private LinkedList<String[]> queue = new LinkedList();
 
-        /* Timer that controls the dispatch */
+        /**
+         * Controls the HTTP request bursting 
+         */
         private Timer timer;
 
-        /* 
-         * TimerTask is an abstract class that we need to extend with  
-         * a new class having a run() method that will fire when the
-         * timer is triggered.
-         */ 
+        /**
+         * Task the timer runs; must implement Java TimerTask abstract class 
+         */
         private class Task extends TimerTask
         {
+                /* Called when the timer fires (see Java TimerTask docs) */
                 public void run() 
                 {
                         send_all_scheduled();
@@ -64,7 +78,7 @@ public class Output
 
         /**
          * Enable sending of events. 
-         * Anything currently in the queue will be sent immediately. 
+         * Anything currently in the queue will be sent immediately.
          */
         public void enable_sending()
         {

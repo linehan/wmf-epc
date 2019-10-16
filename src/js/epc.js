@@ -32,553 +32,388 @@
  *     Mikhail Popov <mpopov@wikimedia.org>
  */
 
-function MOCK_STREAM_CONFIG()
-{
-        return {
-                "edit": {
-                        "stream": "edit",
-                        "scope": "session",
-                        "sample": 0.06,
-                        "start_states": ["editAttemptStart"],
-                        "final_states": ["editAttemptSuccess", "editAttemptFailure"],
-                        "active": false,
-                        "url": "/log",
-                },
-                "edit.firstday": {
-                        /* 
-                         * TODO: 
-                         * Should the sub-stream have its own activity ID?
-                         * Or not? 
-                         *
-                         * Probably not.
-                         *
-                         * If it does not, then we should really do cascading
-                         * the way MP mentioned. That way the scope and stream
-                         * name are the same as with 'edit'. 
-                         *
-                         * But 'stream' is used for table routing. Then we will
-                         * need some other way to point. Okay.
-                         */
-                        "stream": "edit.firstday",
-                        "scope": "session",
-                        "sample": 1.0,
-                        "filter": {
-                                "conf_value": ["wiki_first_day"],
-                        },
-                        "url": "/lab",
-                },
-                "click": {
-                        "stream": "click",
-                        "sample": 0.01,
-                        /* 
-                         * An example of a predicate filter with fields
-                         * we could support.
-                         */
-                        "active":true,
-                        "filter": {
-                                "user_status": ["login", "anon"],
-                                "user_agent": ["firefox", "chrome", "safari"],
-                                "wiki_lang": ["en", "cz", "jp"],
-                                "localtime":["start_time", "end_time"],
-                                /* 
-                                 * A boolean value we can set in their user
-                                 * settings and test for; to allow tagging of
-                                 * cohorts and a kind of 'catch all' route for 
-                                 * predicates we don't yet, or can never, 
-                                 * support in the client. 
-                                 */
-                                "conf_value": ["wiki_first_day"],
-                        },
-                        "url": "https://pai-test.wmflabs.org/log",
-                }
+/*
+ * EPC State Model
+ * ---------------
+ *
+ *  Use this for the basis of documentation, recommendations,
+ *  classification of events, and the drafting of standard
+ *  re-usable schema. 
+ *
+ * instrumentation:
+ *      stateless
+ *              The instrumentation code has no persistence
+ *              of its own beyond the EPC library and 
+ *              application. 
+ *      stateful
+ *              The instrumentation code maintains a separate
+ *              store of persistent state for the sole purpose
+ *              of instrumentation.
+ *
+ * schema->stream:
+ *      simplex 
+ *              The schema and stream only carry one type of
+ *              event.
+ *      multiplex
+ *              The schema is a union type, and the stream can
+ *              carry multiple kinds of events, each marked with
+ *              an 'event_type' label or similar.
+ *
+ * event: 
+ *      aggregated
+ *              Events do not carry information about the specific
+ *              'run' of e.g. a funnel. 
+ *      fibrated 
+ *              Events carry this information in the form of e.g.
+ *              activity_id and can thus be associated with 
+ *              individual runs at query-time.
+ *
+ *      NOTE 
+ *      isn't this actually a property of the schema/stream?
+ *      since this field has to be specified and all...
+ */
+( function() {
+
+        /*************************************************
+         * INTEGRATION 
+         *************************************************/
+
+        var _ = {
+                "get_store": get_store,
+                "set_store": set_store,
+                "http_get": http_get,
+                "http_post": http_post,
+                "new_id": new_id
+                "generate_UUID_v4":generate_UUID_v4,
+                "session_timeout_condition":function() { return false; },
         };
-}
 
+        function bind_output_buffer_events() 
+        {
+                window.addEventListener('pagehide', function() {
+                        OutputBuffer.send_all_scheduled();
+                });
 
-/******************************************************************************
- * INTEGRATION 
- *
- * These are various functions that will link this library to platform
- * specific functionality. 
- *
- * In other words, you fill this out on a per-platform basis.
- ******************************************************************************/
-
-var Integration = {
-        "get_store": function(k) {
-                var data = window.localStorage.getItem(k);
-                return (data) ? JSON.parse(data) : {}; 
-        },
-        "set_store": function(k, v) {
-                window.localStorage.setItem(k, JSON.stringify(v));
-        },
-
-        "new_id": function() {
-                /* Support: IE 11 */
-                var crypto = window.crypto || window.msCrypto;
-
-                if ( crypto && crypto.getRandomValues ) {
-                        if ( typeof Uint16Array === 'function' ) {
-                                /* 
-                                 * Fill an array with 5 random values, 
-                                 * each of which is 16 bits.
-                                 * 
-                                 * Note that Uint16Array is array-like, 
-                                 * but does not implement Array.
-                                 */
-                                var rnds = new Uint16Array( 5 );
-                                crypto.getRandomValues( rnds );
+                document.addEventListener('visibilitychange', function() {
+                        if (document.hidden) {
+                                OutputBuffer.send_all_scheduled();
                         }
-                } else {
-                        var rnds = new Array( 5 );
-                        /* 
-                         * 0x10000 is 2^16 so the operation below will return 
-                         * a number between 2^16 and zero
-                         */
-                        for ( var i = 0; i < 5; i++ ) {
-                                rnds[ i ] = Math.floor( Math.random() * 0x10000 );
-                        }
-                }
+                });
 
-                return  ( rnds[ 0 ] + 0x10000 ).toString( 16 ).slice( 1 ) +
-                        ( rnds[ 1 ] + 0x10000 ).toString( 16 ).slice( 1 ) +
-                        ( rnds[ 2 ] + 0x10000 ).toString( 16 ).slice( 1 ) +
-                        ( rnds[ 3 ] + 0x10000 ).toString( 16 ).slice( 1 ) +
-                        ( rnds[ 4 ] + 0x10000 ).toString( 16 ).slice( 1 );
-        },
-
-        "generate_UUID_v4": function() {
-                return "ffffffff-ffff-ffff-ffff-ffffffffffff";
-        },
-
-        "http_get": function(url, callback) {
-                var xhr = new XMLHttpRequest();
-                xhr.open("GET", url, true);
-                xhr.setRequestHeader("Content-Type", "application/json");
-                xhr.onreadystatechange = function () {
-                        if (xhr.readyState === 4 && xhr.status === 200) {
-                                var json = JSON.parse(xhr.responseText);
-                                callback.call(null, json);
-                        }
-                };
-                xhr.send();
-        },
-
-        "http_post": function(url, data) {
-                navigator.sendBeacon(url, data); 
-        }
-}
-
-/******************************************************************************
- * Output 
- *
- * The output module buffers events being transmitted to the remote intake 
- * server. It is especially helpful on mobile clients where it mitigates: 
- *
- * - Loss of connection
- *      Events generated during connection loss still persist in
- *      the buffer. If the connection is restored, they can still
- *      be transmitted. 
- *
- * - Poor battery life 
- *      The network request profile is shaped so that requests are
- *      sent in "bursts", separated by downtime, during which the
- *      request data dwells in the buffer. 
- *
- *      This has been shown to improve battery life by allowing 
- *      the radio to enter its RRC idle state and other low-power 
- *      states during the time between bursts. 
- ******************************************************************************/
-var Output = (function() 
-{
-        var WAIT_ITEMS = 2;
-        var WAIT_MS = 2000;
-
-        var QUEUE   = [];
-        var TIMEOUT = null;
-        var ENABLED = true;
-
-        function enable_sending()
-        {
-                ENABLED = true;
-                send_all_scheduled();
+                window.addEventListener('offline', function() { 
+                        OutputBuffer.disable_sending();
+                });
+                
+                window.addEventListener('online', function() { 
+                        OutputBuffer.enable_sending();
+                });
         }
 
-        function disable_sending()
-        {
-                ENABLED = false;
-        }
+        /*************************************************
+         * OUTPUT BUFFER 
+         *************************************************/
 
-        function unschedule()
-        {
-                clearTimeout(TIMEOUT);
-        }
-
-        /**
-         * Schedule an item for sending. 
-         *
-         * @url   : The target of the HTTP request 
-         * @str   : The data to send as the POST body
-         * @return: nothing
-         *
-         * NOTE
-         * If sending is not enabled, the scheduler will simply add the
-         * item to the queue and return.
-         *
-         * If sending is enabled, The scheduler will check the queue length. 
-         *      If there are enough items in the queue, it will trigger a burst.
-         *      Otherwise, it will reset the timeout which triggers a burst.
-         */
-        function schedule(url, str) 
-        {
-                QUEUE.push([url, str]);
-
-                if (ENABLED === true) {
-                        /* 
-                         * >= because we might have been disabled and 
-                         * accumulated who knows how many without sending.
-                         */
-                        if (QUEUE.length >= WAIT_ITEMS) {
-                                send_all_scheduled();
-                        } else {
-                                unschedule();
-                                TIMER = setTimeout(send_all_scheduled, WAIT_MS);
-                        }
-                }
-        }
-
-        /**
-         * NOTE
-         * There are five ways to reach this function.
-         *
-         *      1. From schedule():
-         *              An item made QUEUE.length >= BURST_SIZE 
-         *      2. From send():
-         *              We burst early because the radio is now awake
-         *      3. From enable_sending():
-         *              In case timer has expired while disabled, we send here 
-         *      4. From the burst timeout firing:
-         *              Now that events have died down, we start the burst
-         *      5. From another event (e.g. 'unload') firing:
-         *              The handler may call this method to flush the buffer.
-         *
-         * In case 1, 2, and 5, we are bursting "early", so there may be a 
-         * burst timeout counting down, and we need to unschedule() it. 
-         *
-         * In case 3, we may be bursting "early," or we may be bursting "late",
-         * but either way we need to unschedule() the timer. 
-         *
-         * I don't like unschedule() being a side effect of this function, 
-         * but we only have control over cases 1-4. In case 5, the caller
-         * would have to know to call unschedule() and that's just silly. 
-         *
-         * NOTE
-         * Any data in QUEUE will be lost after this function returns. 
-         * There is no possibility to recover from a failed HTTP request.
-         *
-         *      - If connection is lost during a burst, the entire burst 
-         *        will be lost. The event will not fire until after this
-         *        function returns (due to JS). This should be the spec.
-         *
-         *      - If the output is disabled during a burst, the entire
-         *        burst will still be sent. The disablement will not be
-         *        handled until after this function returns (due to JS).
-         */
-        function send_all_scheduled()
-        {
-                unschedule();
-
-                if (ENABLED === true) {
-                        var item = QUEUE.splice(0, QUEUE.length);
-                        for (var i=0; i<item.length; i++) {
-                                send(item[i][0], item[i][1]);
-                        }
-                } else {
-                        /* 
-                         * Do nothing; the data is still in the buffer
-                         * and will be sent after we are enabled again.
-                         */
-                }
-        }
-
-        /**
-         * Initiate an asynchronous HTTP POST request.
-         *
-         * @url   : The target of the HTTP request 
-         * @str   : The data to send as the POST body
-         * @return: nothing
-         *
-         * NOTE 
-         * If output is disabled (no HTTP requests are possible), 
-         * the data will be scheduled on to the buffer and will be 
-         * sent when/if output is enabled again. 
-         *
-         * Otherwise the request will be initiated right away, and
-         * the data will never hit the buffer.
-         *
-         * NOTE
-         * Since this request will be waking up the radio, it will
-         * make sense for it to trigger an "unschedule and flush"
-         * operation to take advantage of the fact that we know the
-         * radio is now awake.
-         */
-        function send(url, str)
-        {
-                if (ENABLED === true) {
-                        Integration.http_post(url, str); 
-                        send_all_scheduled();
-                } else {
-                        schedule(url, str);
-                        /* 
-                         * Option 1: schedule(url, str);
-                         * Option 2: return; the data is silently lost 
-                         */
-                }
-        }
-
-        window.addEventListener('pagehide', function() {
-                send_all_scheduled();
-        });
-
-        document.addEventListener('visibilitychange', function() {
-                if (document.hidden) {
-                        send_all_scheduled();
-                }
-        });
-
-        window.addEventListener('offline', function() { 
-                disable_sending();
-        });
-        
-        window.addEventListener('online', function() { 
-                enable_sending();
-        });
-
-        /* TODO: unload */
-
-        return {
-                "schedule": schedule,
-                "send": send 
-        };
-})();
-
-/******************************************************************************
- * TOKEN 
- * Handles the storage and book-keeping that controls the various
- * pageview, session, and activity tokens.
- ******************************************************************************/
-var Token = (function()
-{
-        var PAGEVIEW = null;
-        var SESSION = null;
-
-        function session_timeout_condition()
-        {
-                return false;
-        }
-
-        function new_table()
-        {
-                return { ":id": new_id(), ":sg": 1 };
-        }
-
-        function pageview_check()
-        {
-                if (PAGEVIEW === null) {
-                        PAGEVIEW = new_table(); 
-                }
-        }
-
-        function session_check()
-        {
-                /* A fresh execution will have SESSION set to null */
-                if (SESSION === null) {
-                        /* Attempt to load SESSION from persistent store */
-                        SESSION = Integration.get_store("epc-session");
-
-                        /* If this fails, or the data is malformed */
-                        if (!SESSION || !(":id" in SESSION) || !(":sg" in SESSION)) { 
-                                /* Then regenerate */
-                                SESSION = new_table();
-                                Integration.set_store("epc-session", SESSION);
-                        }
-                }
-                /* If the session is over, based on our criteria */
-                if (session_timeout()) {
-                        /* Then regenerate */
-                        SESSION = new_table();              
-                        Integration.set_store("epc-session", SESSION);
-
-                        /* And trigger a pageview regeneration as well */
-                        PAGEVIEW = new_table();
-                }
-        }
-
-        function session()
-        {
-                session_check();
-                return SESSION[":id"];
-        }
-
-        function pageview()
-        {
-                pageview_check();
-                return PAGEVIEW[":id"];
-        }
-
-        function activity(name, scopename)
-        {
-                var id, sn;
-
-                if (scopename === "session") {
-                        id = session();
-                        if (!(name in SESSION)) {
-                                SESSION[name] = SESSION[":sg"]++;
-                                Integration.set_store("epc-session", SESSION);
-                        }
-                        sn = SESSION[name];
-                        return id + (sn + 0x10000).toString( 16 ).slice( 1 );
-                }
-                if (scopename === "pageview") {
-                        id = pageview();
-                        if (!(name in PAGEVIEW)) {
-                                PAGEVIEW[name] = PAGEVIEW[":sg"]++;
-                        }
-                        sn = PAGEVIEW[name];
-                        return id + (sn + 0x10000).toString( 16 ).slice( 1 );
-                }
-                return null;
-        }
-
-        function activity_reset(name)
-        {
-                pageview_check();
-                if (name in PAGEVIEW) {
-                        delete(PAGEVIEW[name]);
-                        /* Only one scope per event, so if it was a pageview
-                         * event, we don't need to check the session data */
-                        return;
-                }
-
-                session_check();
-                if (name in SESSION) {
-                        delete(SESSION[name]);
-                        Integration.set_store("epc-session", SESSION);
-                }
-        }
-
-        return {
-                "session" : session,
-                "pageview": pageview,
-                "activity": activity,
-                "activity_reset":activity_reset,
-        };
-})();
-
-/******************************************************************************
- * STREAM MANAGER 
- ******************************************************************************/
-var Stream = (function()
-{
-        var STREAM = {};
-        var CASCADE = {};
-
-        function init()
-        {
-                STREAM = MOCK_STREAM_CONFIG();
-                //Integration.http_get("https://pai-test.wmflabs.org/streams", function(json) {
-                        //STREAM = json;
-                //});
-        }
-
-        function is_stream_enabled(name)
-        {
-                if (EPC_ENABLED() && (name in STREAM) && stream_active(name)) {
-                        return true;
-                }
-                return false;
-        }
-
-        function is_stream_sampled(name)
-        {
-                return true; 
-        }
-
-        function get_stream_property(name, property, if_dne)
-        {
-                if ((name in STREAM) && (property in STREAM[name])) {
-                        return STREAM[name][property];
-                }
-                return if_dne;
-        }
-
-        function stream_active(name)
-        {
-                return get_stream_property(name, "active", true); 
-        }
-
-        function stream_scope(name)
-        {
-                return get_stream_property(name, "scope", "none");
-        }
-
-        function is_event_orphaned(name, data)
+        var OutputBuffer = (function() 
         {
                 /* 
-                 * TODO: Do we even want to bother with this?
+                 * The number of items that can be enqueued
+                 * before the timer becomes non-interruptable 
                  */
-        }
+                var WAIT_ITEMS = 10;
 
-        function event(name, data, timestamp) 
-        { 
-                if (!is_stream_enabled(name)) {
-                        return false;
-                }
-                if (is_event_orphaned(name, data)) {
-                        return false;
-                }
-                if (!is_stream_sampled(name)) {
-                        return false;
-                }
+                /* 
+                 * The number of milliseconds during which the
+                 * timer can be interrupted and reset by the
+                 * arrival of a new item on the queue.
+                 */
+                var WAIT_MS = 2000;
 
-                console.log("here");
+                /* When FALSE, queue can't be emptied */
+                var ENABLED = true;
 
-                var e = data;
+                /* Queue items are [url, body] pairs */
+                var QUEUE = []; 
 
-                e.meta = {
-                        "id"    : Integration.generate_UUID_v4(),
-                        "dt"    : timestamp,
-                        "domain": MOCK_WIKI_DOMAIN(),
-                        "uri"   : MOCK_WIKI_URI(),
-                        "stream": STREAM[name].stream_name,
-                };
+                /* Timeout controlling the HTTP request bursting */
+                var TIMER = null;
 
-                e.$schema = STREAM[name].schema_url;
+                return {
+                        send_all_scheduled: function() {
+                                clearTimeout(TIMER);
 
-                e.session  = Token.session();
-                e.pageview = Token.pageview(); 
-                e.activity = Token.activity(name, stream_scope(name));
-
-                Output.schedule('http://pai-test.wmflabs.org/log', JSON.stringify(e));
-                //Output.schedule(STREAM[name].url, JSON.stringify(e));
-
-                /* Cascade the event to child events */ 
-                if (!(name in CASCADE)) {
-                        CASCADE[name] = [];
-                        for (var x in STREAM) {
-                                if (x.indexOf(name+".") === 0) {
-                                        CASCADE[name].push(x);
+                                if (ENABLED === true) {
+                                        /* 
+                                         * Data is permanently removed from the 
+                                         * queue. If this.send() fails, the 
+                                         * data will be lost.
+                                         */
+                                        var arr = QUEUE.splice(0, QUEUE.length);
+                                        for (var i=0; i<arr.length; i++) {
+                                                this.send(arr[i][0], arr[i][1]);
+                                        }
                                 }
-                        }
-                }
-                for (var i=0; i<CASCADE[name].length; i++) { 
-                        /* TODO: don't call is_event_orphaned more than once! */
-                        event(CASCADE[name][i], data);
-                }
-        }
+                                /* 
+                                 * If not enabled, the data remains in the 
+                                 * queue and could be sent later. 
+                                 */
+                        },
+
+                        schedule: function(url, str) {
+                                QUEUE.push([url, str]);
+
+                                if (ENABLED === true) {
+                                        /* 
+                                         * >= because we might have been 
+                                         * disabled and accumulated who 
+                                         * knows how many items.
+                                         */
+                                        if (QUEUE.length >= WAIT_ITEMS) {
+                                                this.send_all_scheduled();
+                                        } else {
+                                                clearTimeout(TIMER);
+                                                TIMER = setTimeout(this.send_all_scheduled, WAIT_MS);
+                                        }
+                                }
+                        },
+
+                        send: function(url, str) {
+                                if (ENABLED === true) {
+                                        _.http_post(url, str); 
+                                        /* 
+                                         * Since we just woke the device's
+                                         * radio by calling http_post(), we
+                                         * might as well flush the buffer.
+                                         */
+                                        this.send_all_scheduled();
+                                } else {
+                                        /*
+                                         * TODO: Choose behavior:
+                                         * 1. If disabled, send() becomes schedule()
+                                         * 2. If disabled, send() becomes a no-op
+                                         */
+                                        this.schedule(url, str);
+                                }
+                        },
+
+                        enable_sending: function() {
+                                ENABLED = true;
+                                /*
+                                 * We try right away to send any messages
+                                 * in the queue. This behavior is handy.
+                                 */
+                                this.send_all_scheduled();
+                        },
+
+                        disable_sending: function() {
+                                ENABLED = false;
+                        },
+                };
+        })();
+
+        /*************************************************
+         * ASSOCIATION CONTROLLER 
+         *************************************************/
+
+        var Association = (function()
+        {
+                var P_TOKEN = null;
+                var P_TABLE; 
+                var P_CLOCK; // FIXME: These clocks have max values
+
+                var S_TOKEN = null;
+                var S_TABLE;
+                var S_CLOCK; // FIXME: These clocks have max values
+
+                return {
+                        begin_new_session: function() {
+                                /* Diagnoses session reset */
+                                S_TOKEN = null;
+                                _del_store("s_token"); 
+
+                                /* Diagnoses pageview reset */
+                                P_TOKEN = null;
+                        },
+
+                        begin_new_activity: function(n) {
+                                if (P_TABLE && (n in P_TABLE)) { 
+                                        delete(P_TABLE[n]);
+                                        return;
+                                }
+
+                                /* Make sure we have loaded from persistence */
+                                this.sessionID(); 
+
+                                if (n in S_TABLE) {
+                                        delete(S_TABLE[n]);
+                                        _set_store("s_table", S_TABLE);
+                                }
+                        },
+
+                        sessionID: function() {
+                                if (S_TOKEN === null) {
+                                        /* Try to load session data */
+                                        S_TOKEN = _get_store("s_token");
+                                        S_TABLE = _get_store("s_table");
+                                        S_CLOCK = _get_store("s_clock");
+
+                                        /* If this fails... */
+                                        if (S_TOKEN == null) {
+                                                /* Generate a new session */
+                                                S_TOKEN = _new_id();
+                                                S_TABLE = {};
+                                                S_CLOCK = 1;
+                                                _set_store("s_token", S_TOKEN);
+                                                _set_store("s_table", S_TABLE);
+                                                _set_store("s_clock", S_CLOCK);
+                                        }
+                                }
+                                return S_TOKEN; 
+                        },
+
+                        pageviewID: function() {
+                                if (P_TOKEN === null) {
+                                        P_TOKEN = _new_id(); 
+                                        P_TABLE = {};
+                                        P_CLOCK = 1;
+                                }
+
+                                return P_TOKEN; 
+                        },
+
+                        activityID: function(n, scope) {
+                                if (scope === "session") {
+                                        var tok = this.sessionID();
+                                        if (!(n in S_TABLE)) {
+                                                S_TABLE[n] = S_CLOCK++;
+                                                _set_store("s_table", S_TABLE);
+                                                _set_store("s_clock", S_CLOCK);
+                                        }
+                                        var inc = S_TABLE[n];
+                                } else {
+                                        var tok = this.pageviewID();
+                                        if (!(n in P_TABLE)) {
+                                                P_TABLE[n] = P_CLOCK++;
+                                        }
+                                        var inc = P_TABLE[n];
+                                }
+
+                                /* == printf("%s%04x", tok, inc) */ 
+                                return tok+(inc+0x10000).toString(16).slice(1);
+                        },
+
+                };
+        })();
+
+        /*************************************************
+         * SAMPLING CONTROLLER 
+         *************************************************/
+
+        var Sampling = (function()
+        {
+                return {
+                        in_sample: function(token, sampling_config) {
+                                return true;
+                        },
+                };
+        })();
+
+        
+        /*************************************************
+         * PUBLIC API 
+         *************************************************/
+
+        var URL = "http://pai-test.wmflabs.org/log";
+
+        var S = {}; /* Streams */
+        var C = {}; /* Cascade */
 
         return {
-                "init": init,
-                "event": stream_scope,
+                event: function(n, e, timestamp) {
+                        if (S[n] === undefined) { 
+                                /* 
+                                 * Events for (as-yet) unconfigured streams are
+                                 * placed on the InputBuffer. 
+                                 */
+                                InputBuffer.event(n, data, timestamp);
+                                return;
+                        }
+
+                        if (S[n].is_available === false) {
+                                /* 
+                                 * The stream is configured as unavailable,
+                                 * and will not receive events. 
+                                 */
+                                return;
+                        }
+
+                        /* 
+                         * (1): AssociationController 
+                         */
+
+                        e.session  = Association.sessionID();
+                        e.pageview = Association.pageviewID(); 
+
+                        if (S[n].scope !== "session") {
+                                S[n].scope = "pageview";
+                        }
+
+                        e.activity = Association.activityID(n, S[n].scope); 
+
+                        /*
+                         * (2): SamplingController
+                         */
+
+                        if (Sampling.in_sample(e.activity, S[n].sampling)) {
+
+                                /*
+                                 * (3): Other processing and instrumentation 
+                                 */
+
+                                e.meta = {
+                                        "id"    : _.generate_UUID_v4(),
+                                        "dt"    : timestamp,
+                                        "domain": MOCK_WIKI_DOMAIN(),
+                                        "uri"   : MOCK_WIKI_URI(),
+                                        "stream": n,
+                                };
+
+                                e.$schema = S[n].url;
+
+                                /* e = InstrumentationModule.process(n, e); */
+
+                                OutputBuffer.schedule(URL, JSON.stringify(e));
+                        }
+                        
+                        /* 
+                         * Cascade 
+                         */
+
+                        for (var i=0; i<C[n].length; i++) { 
+                                this.event(C[n][i], data, timestamp);
+                        }
+                },
+
+                streams: function(config) {
+                        /* FIXME: This method is so bad */
+                        for (var n in config) {
+                                if (!(n in S)) {
+                                        /* First assignment wins */
+                                        S[n] = config[n];
+                                }
+                        }
+
+                        C = {};
+
+                        for (var x in S) {
+                                C[x] = [];
+                                for (var y in S) {
+                                        if (y.indexOf(x+".") === 0) {
+                                                C[x].push(y); 
+                                        }
+                                }
+                        }
+
+                        /* TODO: InputBuffer flush goes here */
+                }
         };
 })();

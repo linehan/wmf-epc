@@ -35,24 +35,49 @@ import java.util.Random;
  * TOKEN 
  * Handles the storage and book-keeping that controls the various
  * pageview, session, and activity tokens.
+ *
+ * ID format:
+ *
+ *      aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbb
+ *      |------------------------------||--|
+ *              pageview or session     stream
+ *                      id              increment
+ *
+ * 1. On new pageview:
+ *      a. A random pageview identifier is generated 
+ *      c. The pageview increment table is deleted.
+ *      b. The pageview increment clock is set to 1.
+ *
+ * 2. On new session:
+ *      a. A random session identifier is generated.
+ *      b. The session increment table is deleted.
+ *      c. The session increment clock is set to 1.
+ *      d. The new pageview event is applied.
  ******************************************************************************/
 public class Token
 {
-        /* Cache the ID values */
-        String PAGEVIEW_ID = null;
-        String SESSION_ID = null;
+        /**
+         * Data used to build pageview IDs
+         */
+        String               PAGEVIEW_TOKEN = null;
+        Integer              PAGEVIEW_CLOCK = 1;
+        Map<String, Integer> PAGEVIEW_TABLE = null;
 
-        /* The global clock ticks */
-        Integer PAGEVIEW_CL = 1;
-        Integer SESSION_CL = 1;
+        /**
+         * Data used to build session IDs
+         */
+        String               SESSION_TOKEN = null;
+        Integer              SESSION_CLOCK = 1;
+        Map<String, Integer> SESSION_TABLE = null;
 
-        /* Hash tables store sequence numbers for various scoped streams */
-        Map<String, Integer> PAGEVIEW_SQ = null;
-        Map<String, Integer> SESSION_SQ = null;
-
-        /* Used to generate random numbers in new_id() */
+        /**
+         * Used to generate random numbers in new_id() 
+         */
         Random prng = null;
 
+        /**
+         * TODO: Move to 'Integration'?
+         */
         private String new_id()
         {
                 if (prng == null) {
@@ -71,110 +96,161 @@ public class Token
                 );
         }
 
+        /**
+         * TODO: Move to 'Integration'?
+         */
         private boolean session_timeout()
         {
+                /* TODO: For detecting session timeout */
                 return false;
         }
 
+        /**
+         * (Re)-generate state if a new pageview has started.
+         */
         private void pageview_check()
         {
-                if (PAGEVIEW_ID == null) {
-                        PAGEVIEW_ID = new_id();
-                        PAGEVIEW_SQ = new HashMap<String, Integer>();
-                        PAGEVIEW_CL = 1;
+                if (PAGEVIEW_TOKEN == null) {
+                        PAGEVIEW_TOKEN = new_id();
+                        PAGEVIEW_TABLE = new HashMap<String, Integer>();
+                        PAGEVIEW_CLOCK = 1;
                 }
         }
 
+        /**
+         * (Re)-generate state if a new session has started.
+         */
         private void session_check()
         {
                 /* A fresh execution will have SESSION set to null */
-                if (SESSION_ID == null) {
+                if (SESSION_TOKEN == null) {
                         /* Attempt to load SESSION from persistent store */ 
-                        SESSION_ID = Integration.get_store("epc-session-id");
-                        SESSION_SQ = Integration.get_store("epc-session-sq");
-                        SESSION_CL = Integration.get_store("epc-session-cl");
+                        SESSION_TOKEN = Integration.get_store("session-token");
+                        SESSION_TABLE = Integration.get_store("session-table");
+                        SESSION_CLOCK = Integration.get_store("session-clock");
 
                         /* If this fails, or the data is malformed... */ 
-                        if (SESSION_ID == null || SESSION_SQ == null) { 
-                                SESSION_ID = new_id();
-                                SESSION_SQ = new HashMap<String, Integer>();
-                                SESSION_CL = 1;
-                                Integration.set_store("epc-session-id", SESSION_ID);
-                                Integration.set_store("epc-session-sq", SESSION_SQ);
-                                Integration.set_store("epc-session-cl", SESSION_CL);
+                        if (SESSION_TOKEN == null || SESSION_TABLE == null) { 
+                                SESSION_TOKEN = new_id();
+                                SESSION_TABLE = new HashMap<String, Integer>();
+                                SESSION_CLOCK = 1;
+                                Integration.set_store("session-token", SESSION_TOKEN);
+                                Integration.set_store("session-table", SESSION_TABLE);
+                                Integration.set_store("session-clock", SESSION_CLOCK);
                         }
                 }
                 /* If the session is over, based on our criteria ... */
                 if (session_timeout()) {
                         /* ... then regenerate ... */
-                        SESSION_ID = new_id();
-                        SESSION_SQ = new HashMap<String, Integer>();
-                        SESSION_CL = 1;
-                        Integration.set_store("epc-session-id", SESSION_ID);
-                        Integration.set_store("epc-session-sq", SESSION_SQ);
-                        Integration.set_store("epc-session-cl", SESSION_CL);
+                        SESSION_TOKEN = new_id();
+                        SESSION_TABLE = new HashMap<String, Integer>();
+                        SESSION_CLOCK = 1;
+                        Integration.set_store("session-token", SESSION_TOKEN);
+                        Integration.set_store("session-table", SESSION_TABLE);
+                        Integration.set_store("session-clock", SESSION_CLOCK);
 
                         /* ... and trigger a pageview regeneration as well */
-                        PAGEVIEW_ID = new_id();
-                        PAGEVIEW_SQ = new HashMap<String, Integer>();
-                        PAGEVIEW_CL = 1;
+                        PAGEVIEW_TOKEN = new_id();
+                        PAGEVIEW_TABLE = new HashMap<String, Integer>();
+                        PAGEVIEW_CLOCK = 1;
                 }
         }
 
+        /**
+         * Fetch the session ID 
+         * @return: ID string of hex characters
+         */
         public String session()
         {
                 session_check();
-                return SESSION_ID;
+                return SESSION_TOKEN;
         }
 
+        /**
+         * Fetch the pageview ID 
+         * @return: ID string of hex characters
+         */
         public String pageview()
         {
                 pageview_check();
-                return PAGEVIEW_ID;
+                return PAGEVIEW_TOKEN;
         }
 
-        public String activity(String name, String scopename)
+        /**
+         * Format an activity ID for the given stream and scope.
+         *
+         * @stream_name: Used to look up the stream's increment.
+         * @scope_name : Used to choose which table to look in. 
+         * @return     : ID string of hex characters.
+         *
+         * NOTE
+         * This function should not require @scope_name, since a 
+         * @stream_name key will appear in only one of the tables.
+         * Meaning you could check them all and return the first
+         * one you find. 
+         *
+         * The problem is that these IDs are created lazily, so
+         * in the case where you find no increment in any of the
+         * tables, you need to create an increment, but it is not
+         * clear what table it should go in. The caller must 
+         * provide this information every time.
+         *
+         * That sucks. Can we re-design this so it doesn't need
+         * to happen?
+         */
+        public String activity(String stream_name, String scope_name)
         {
-                String id;
-                Integer sn;
+                String token;
+                Integer increment;
 
-                if (scopename.equals("session")) {
-                        id = session();
-                        if (!SESSION_SQ.containsKey(name)) {
-                                SESSION_SQ.put(name, SESSION_CL);
-                                SESSION_CL = SESSION_CL + 1;
-                                Integration.set_store("epc-session-sq", SESSION_SQ);
-                                Integration.set_store("epc-session-cl", SESSION_CL);
+                if (scope_name.equals("session")) {
+                        token = session();
+                        if (!SESSION_TABLE.containsKey(stream_name)) {
+                                SESSION_TABLE.put(stream_name, SESSION_CLOCK);
+                                SESSION_CLOCK = SESSION_CLOCK + 1;
+                                Integration.set_store("session-table", SESSION_TABLE);
+                                Integration.set_store("session-clock", SESSION_CLOCK);
                         }
-                        sn = SESSION_SQ.get(name);
-                        return String.format("%s%04x", id, sn);
+                        increment = SESSION_TABLE.get(stream_name);
+                        return String.format("%s%04x", token, increment);
                 }
-                if (scopename.equals("pageview")) {
-                        id = pageview();
-                        if (!PAGEVIEW_SQ.containsKey(name)) {
-                                PAGEVIEW_SQ.put(name, PAGEVIEW_CL);
-                                PAGEVIEW_CL = PAGEVIEW_CL + 1;
+                if (scope_name.equals("pageview")) {
+                        token = pageview();
+                        if (!PAGEVIEW_TABLE.containsKey(stream_name)) {
+                                PAGEVIEW_TABLE.put(stream_name, PAGEVIEW_CLOCK);
+                                PAGEVIEW_CLOCK = PAGEVIEW_CLOCK + 1;
                         }
-                        sn = PAGEVIEW_SQ.get(name);
-                        return String.format("%s%04x", id, sn);
+                        increment = PAGEVIEW_TABLE.get(stream_name);
+                        return String.format("%s%04x", token, increment);
                 }
                 return null;
         }
 
-        public void activity_reset(String name)
+        /**
+         * Remove the given stream from the activity table
+         *
+         * @stream_name: Used to look up the stream's increment.
+         * @return     : nothing
+         *
+         * NOTE
+         * We don't need to provide @scope_name, because we are 
+         * only deleting, not inserting. The insert will be handled
+         * by a future call to activity().
+         */
+        public void activity_complete(String stream_name)
         {
                 pageview_check();
-                if (PAGEVIEW_SQ.containsKey(name)) {
-                        PAGEVIEW_SQ.remove(name);
+                if (PAGEVIEW_TABLE.containsKey(stream_name)) {
+                        PAGEVIEW_TABLE.remove(stream_name);
                         /* Only one scope per event, so if it was a pageview
                          * event, we don't need to check the session data */
                         return;
                 }
 
                 session_check();
-                if (SESSION_SQ.containsKey(name)) {
-                        SESSION_SQ.remove(name);
-                        Integration.set_store("epc-session-sq", SESSION_SQ);
+                if (SESSION_TABLE.containsKey(stream_name)) {
+                        SESSION_TABLE.remove(stream_name);
+                        Integration.set_store("session-table", SESSION_TABLE);
                 }
         }
 }

@@ -53,12 +53,6 @@ public class Stream
                 stream_config = config;
         }
 
-
-        /* 
-         * PROPERTY ACCESSORS
-         */
-
-        
         /**
          * Get the URL to send the stream event to  
          *
@@ -128,12 +122,6 @@ public class Stream
                 }
         }
 
-
-        /* 
-         * PREDICATES 
-         */
-
-
         public boolean is_enabled(String stream) 
         {
                 if (!stream_config.has(stream)) {
@@ -150,6 +138,7 @@ public class Stream
 
         public boolean is_sampled(String stream) 
         {
+                /* TODO: Needs to be predicated */
                 return true;
         }
 }

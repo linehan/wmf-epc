@@ -66,7 +66,6 @@ class EPC
          */
         Output output = new Output();
 
-
         /**
          * Store events until the library is finished initializing.
          *
@@ -76,6 +75,14 @@ class EPC
          * we store any incoming events in this buffer.
          */
         LinkedList<JSONObject> input_buffer = new LinkedList<JSONObject>();
+
+        /** 
+         * A do-nothing private constructor to enforce singleton-ness.
+         */
+        private void EPC(void)
+        {
+                /* Nothing */
+        }
 
         /**
          * Log an event to the input buffer.
@@ -114,6 +121,13 @@ class EPC
                 meta = new JSONObject();
                 data = new JSONObject();
 
+                /* 
+                 * TODO:
+                 * Technically, this stuff is all WMF-centric. In order
+                 * to make the library fully generic, we would simply need
+                 * to have this factored out into a separate 'WMF event'
+                 * kind of thing.
+                 */
                 meta.put("id", Integration.get_UUID_v4());
                 meta.put("dt", Integration.get_iso_8601_timestamp());
                 meta.put("domain", Integration.get_wiki_domain());
@@ -148,38 +162,17 @@ class EPC
         /**
          * Fetch stream configuration and use it to instantiate Stream.
          */ 
-        public void init()
+        public void initialize()
         {
                 JSONObject conf;
                 JSONObject ev;
 		String  json;
-                URL     url;
-		String  charset;
 
-                try {
-                        url = new URL(STREAM_CONFIG_URL);
-                } catch (Exception e) {
-                        throw new RuntimeException(e);
-                }
-
-		charset = StandardCharsets.UTF_8.toString();
-
-                /* 
-                 * TODO: This code is bad and will be taken out and
-                 * replaced with a common HTTP GET requester. 
-                 */
-		try (Scanner scanner = new Scanner(url.openStream(), charset)) { 
-			/* 
-			 * Regex '\\A' matches beginning of input. 
-			 * This tells Scanner to tokenize the entire stream.
-			 */
-			scanner.useDelimiter("\\A");
-			json = scanner.hasNext() ? scanner.next() : "";
+		try {
+			json = Integration.http_get(STREAM_CONFIG_URL);
 		} catch (Exception e) {
-			throw new RuntimeException(e);
+			json = "";
 		}
-
-                System.out.println(json);
 
                 try {
                         conf = new JSONObject(json);
