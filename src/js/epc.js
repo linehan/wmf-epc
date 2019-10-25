@@ -31,87 +31,7 @@
  *     Jason Linehan <jlinehan@wikimedia.org>
  *     Mikhail Popov <mpopov@wikimedia.org>
  */
-
-/*
- * EPC State Model
- * ---------------
- *
- *  Use this for the basis of documentation, recommendations,
- *  classification of events, and the drafting of standard
- *  re-usable schema. 
- *
- * instrumentation:
- *      stateless
- *              The instrumentation code has no persistence
- *              of its own beyond the EPC library and 
- *              application. 
- *      stateful
- *              The instrumentation code maintains a separate
- *              store of persistent state for the sole purpose
- *              of instrumentation.
- *
- * schema->stream:
- *      simplex 
- *              The schema and stream only carry one type of
- *              event.
- *      multiplex
- *              The schema is a union type, and the stream can
- *              carry multiple kinds of events, each marked with
- *              an 'event_type' label or similar.
- *
- * event: 
- *      aggregated
- *              Events do not carry information about the specific
- *              'run' of e.g. a funnel. 
- *      fibrated 
- *              Events carry this information in the form of e.g.
- *              activity_id and can thus be associated with 
- *              individual runs at query-time.
- *
- *      NOTE 
- *      isn't this actually a property of the schema/stream?
- *      since this field has to be specified and all...
- */
 ( function() {
-
-        /*************************************************
-         * INTEGRATION 
-         *************************************************/
-
-        var _ = {
-                "get_store": get_store,
-                "set_store": set_store,
-                "http_get": http_get,
-                "http_post": http_post,
-                "new_id": new_id
-                "generate_UUID_v4":generate_UUID_v4,
-                "session_timeout_condition":function() { return false; },
-        };
-
-        function bind_output_buffer_events() 
-        {
-                window.addEventListener('pagehide', function() {
-                        OutputBuffer.send_all_scheduled();
-                });
-
-                document.addEventListener('visibilitychange', function() {
-                        if (document.hidden) {
-                                OutputBuffer.send_all_scheduled();
-                        }
-                });
-
-                window.addEventListener('offline', function() { 
-                        OutputBuffer.disable_sending();
-                });
-                
-                window.addEventListener('online', function() { 
-                        OutputBuffer.enable_sending();
-                });
-        }
-
-        /*************************************************
-         * OUTPUT BUFFER 
-         *************************************************/
 
         var OutputBuffer = (function() 
         {
@@ -178,7 +98,7 @@
 
                         send: function(url, str) {
                                 if (ENABLED === true) {
-                                        _.http_post(url, str); 
+                                        Integration.http_post(url, str); 
                                         /* 
                                          * Since we just woke the device's
                                          * radio by calling http_post(), we
@@ -214,21 +134,21 @@
          * ASSOCIATION CONTROLLER 
          *************************************************/
 
-        var Association = (function()
+        var AssociationController = (function()
         {
                 var P_TOKEN = null;
                 var P_TABLE; 
-                var P_CLOCK; // FIXME: These clocks have max values
+                var P_CLOCK; /* FIXME: These clocks have max values */
 
                 var S_TOKEN = null;
                 var S_TABLE;
-                var S_CLOCK; // FIXME: These clocks have max values
+                var S_CLOCK; /* FIXME: These clocks have max values */
 
                 return {
                         begin_new_session: function() {
                                 /* Diagnoses session reset */
                                 S_TOKEN = null;
-                                _del_store("s_token"); 
+                                Integration.del_store("s_token"); 
 
                                 /* Diagnoses pageview reset */
                                 P_TOKEN = null;
@@ -245,16 +165,16 @@
 
                                 if (n in S_TABLE) {
                                         delete(S_TABLE[n]);
-                                        _set_store("s_table", S_TABLE);
+                                        Integration.set_store("s_table", S_TABLE);
                                 }
                         },
 
                         sessionID: function() {
                                 if (S_TOKEN === null) {
                                         /* Try to load session data */
-                                        S_TOKEN = _get_store("s_token");
-                                        S_TABLE = _get_store("s_table");
-                                        S_CLOCK = _get_store("s_clock");
+                                        S_TOKEN = Integration.get_store("s_token");
+                                        S_TABLE = Integration.get_store("s_table");
+                                        S_CLOCK = Integration.get_store("s_clock");
 
                                         /* If this fails... */
                                         if (S_TOKEN == null) {
@@ -262,9 +182,9 @@
                                                 S_TOKEN = _new_id();
                                                 S_TABLE = {};
                                                 S_CLOCK = 1;
-                                                _set_store("s_token", S_TOKEN);
-                                                _set_store("s_table", S_TABLE);
-                                                _set_store("s_clock", S_CLOCK);
+                                                Integration.set_store("s_token", S_TOKEN);
+                                                Integration.set_store("s_table", S_TABLE);
+                                                Integration.set_store("s_clock", S_CLOCK);
                                         }
                                 }
                                 return S_TOKEN; 
@@ -272,7 +192,7 @@
 
                         pageviewID: function() {
                                 if (P_TOKEN === null) {
-                                        P_TOKEN = _new_id(); 
+                                        P_TOKEN = Integration.new_id(); 
                                         P_TABLE = {};
                                         P_CLOCK = 1;
                                 }
@@ -285,8 +205,8 @@
                                         var tok = this.sessionID();
                                         if (!(n in S_TABLE)) {
                                                 S_TABLE[n] = S_CLOCK++;
-                                                _set_store("s_table", S_TABLE);
-                                                _set_store("s_clock", S_CLOCK);
+                                                Integration.set_store("s_table", S_TABLE);
+                                                Integration.set_store("s_clock", S_CLOCK);
                                         }
                                         var inc = S_TABLE[n];
                                 } else {
@@ -308,13 +228,14 @@
          * SAMPLING CONTROLLER 
          *************************************************/
 
-        var Sampling = (function()
+        var SamplingController = (function()
         {
                 return {
                         in_sample: function(token, sampling_config) {
                                 return true;
                         },
                 };
+                /* ... a/b testing ... */
         })();
 
         
@@ -324,21 +245,27 @@
 
         var URL = "http://pai-test.wmflabs.org/log";
 
-        var S = {}; /* Streams */
-        var C = {}; /* Cascade */
+        var CONFIG = {};
+        var COPIES = {};
 
         return {
-                event: function(n, e, timestamp) {
-                        if (S[n] === undefined) { 
+                log: function(stream_name, data) {
+
+                        /* Multiple dispatch of events. */
+                        for (var i=0; i<COPIES[stream_name].length; i++) { 
+                                this.log(COPIES[stream_name][i], data);
+                        }
+
+                        if (CONFIG[stream_name] === undefined) { 
                                 /* 
                                  * Events for (as-yet) unconfigured streams are
                                  * placed on the InputBuffer. 
                                  */
-                                InputBuffer.event(n, data, timestamp);
+                                Integration.input_buffer_append(stream_name, data);
                                 return;
                         }
 
-                        if (S[n].is_available === false) {
+                        if (CONFIG[stream_name].is_available === false) {
                                 /* 
                                  * The stream is configured as unavailable,
                                  * and will not receive events. 
@@ -346,69 +273,108 @@
                                 return;
                         }
 
+                        if (Integration.client_cannot_be_tracked()) {
+                                /* 
+                                 * If the client cannot be tracked, then we
+                                 * can only send events if they certify as
+                                 * being non-identifiable.
+                                 */
+                                if (CONFIG[stream_name].is_nonidentifiable !== true) {
+                                        return;
+                                }
+                        }
+
                         /* 
                          * (1): AssociationController 
                          */
 
-                        e.session  = Association.sessionID();
-                        e.pageview = Association.pageviewID(); 
+                        var sessionID = AssociationController.sessionID();
+                        var pageviewID = AssociationController.pageviewID(); 
+                        var sampleID = null;
 
-                        if (S[n].scope !== "session") {
-                                S[n].scope = "pageview";
+                        if (CONFIG[stream_name].scope !== "session") {
+                                CONFIG[stream_name].scope = "pageview";
+                                sampleID = pageviewID;
+                        } else {
+                                sampleID = sessionID;
                         }
 
-                        e.activity = Association.activityID(n, S[n].scope); 
+                        var activityID = AssociationController.activityID(stream_name, CONFIG[stream_name].scope); 
 
                         /*
                          * (2): SamplingController
                          */
 
-                        if (Sampling.in_sample(e.activity, S[n].sampling)) {
+                        if (SamplingController.in_sample(sampleID, CONFIG[stream_name].sampling)) {
 
                                 /*
                                  * (3): Other processing and instrumentation 
                                  */
 
-                                e.meta = {
-                                        "id"    : _.generate_UUID_v4(),
-                                        "dt"    : timestamp,
-                                        "domain": MOCK_WIKI_DOMAIN(),
-                                        "uri"   : MOCK_WIKI_URI(),
-                                        "stream": n,
+                                data.meta = {
+                                        /*
+                                         * Unique ID to allow deduplication at the server. 
+                                         *
+                                         * Some browsers will inadvertently emit duplicate HTTP 
+                                         * requests under certain conditions.
+                                         *
+                                         * TODO 
+                                         * 'pageview' and 'dt' are sufficient for this purpose. 
+                                         * Is it worth generating and sending an additional ~128 
+                                         * bits of randomness per request? 
+                                         */
+                                        "id": Integration.generate_UUID_v4(),
+
+                                        /*
+                                         * ISO 8601 timestamp generated when event was triggered.
+                                         * TODO: we need locale information like tz too, right?
+                                         * TODO: Is this identifiable?
+                                         */
+                                        "dt": Integration.get_iso_8601_timestamp(),
+
+                                        /* 
+                                         * Name of the stream. 
+                                         * Will be used by EventGate to fetch stream config.
+                                         */
+                                        "stream": stream_name,
                                 };
 
-                                e.$schema = S[n].url;
+                                /* name and revision of schema. */
+                                data.$schema = CONFIG[stream_name].$schema,
 
-                                /* e = InstrumentationModule.process(n, e); */
+                                if (CONFIG[stream_name].is_nonidentifiable !== true) {
+                                        /* 
+                                         * All identifiable information should be 
+                                         * added here. This is crude and will need
+                                         * to be revisited.
+                                         */
+                                        data.session = sessionID;
+                                        data.pageview = pageviewID;
+                                        data.activity = activityID;
+                                }
 
-                                OutputBuffer.schedule(URL, JSON.stringify(e));
-                        }
-                        
-                        /* 
-                         * Cascade 
-                         */
+                                /* data = InstrumentationModule.process(stream_name, data); */
 
-                        for (var i=0; i<C[n].length; i++) { 
-                                this.event(C[n][i], data, timestamp);
+                                OutputBuffer.schedule(CONFIG[stream_name].url, JSON.stringify(data));
                         }
                 },
 
-                streams: function(config) {
-                        /* FIXME: This method is so bad */
-                        for (var n in config) {
+                configure: function(stream_config) {
+
+                        for (var n in stream_config) {
                                 if (!(n in S)) {
                                         /* First assignment wins */
-                                        S[n] = config[n];
+                                        CONFIG[n] = stream_config[n];
                                 }
                         }
 
                         C = {};
 
                         for (var x in S) {
-                                C[x] = [];
+                                COPIES[x] = [];
                                 for (var y in S) {
                                         if (y.indexOf(x+".") === 0) {
-                                                C[x].push(y); 
+                                                COPIES[x].push(y); 
                                         }
                                 }
                         }
