@@ -358,18 +358,18 @@
 
                 configure: function(stream_config) {
 
-                        for (var n in stream_config) {
-                                if (!(n in S)) {
+                        for (var stream_name in stream_config) {
+                                if (!(stream_name in CONFIG)) {
                                         /* First assignment wins */
-                                        CONFIG[n] = stream_config[n];
+                                        CONFIG[stream_name] = stream_config[stream_name];
                                 }
                         }
 
-                        C = {};
+                        COPIES = {};
 
-                        for (var x in S) {
+                        for (var x in CONFIG) {
                                 COPIES[x] = [];
-                                for (var y in S) {
+                                for (var y in CONFIG) {
                                         if (y.indexOf(x+".") === 0) {
                                                 COPIES[x].push(y); 
                                         }
