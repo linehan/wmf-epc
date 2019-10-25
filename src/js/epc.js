@@ -32,7 +32,6 @@
  *     Mikhail Popov <mpopov@wikimedia.org>
  */
 ( function() {
-
         var OutputBuffer = (function() 
         {
                 /* 
@@ -154,17 +153,17 @@
                                 P_TOKEN = null;
                         },
 
-                        begin_new_activity: function(n) {
-                                if (P_TABLE && (n in P_TABLE)) { 
-                                        delete(P_TABLE[n]);
+                        begin_new_activity: function(stream_name) {
+                                if (P_TABLE && (stream_name in P_TABLE)) { 
+                                        delete(P_TABLE[stream_name]);
                                         return;
                                 }
 
                                 /* Make sure we have loaded from persistence */
                                 this.sessionID(); 
 
-                                if (n in S_TABLE) {
-                                        delete(S_TABLE[n]);
+                                if (stream_name in S_TABLE) {
+                                        delete(S_TABLE[stream_name]);
                                         Integration.set_store("s_table", S_TABLE);
                                 }
                         },
@@ -200,27 +199,25 @@
                                 return P_TOKEN; 
                         },
 
-                        activityID: function(n, scope) {
+                        activityID: function(stream_name, scope) {
                                 if (scope === "session") {
                                         var tok = this.sessionID();
-                                        if (!(n in S_TABLE)) {
-                                                S_TABLE[n] = S_CLOCK++;
+                                        if (!(stream_name in S_TABLE)) {
+                                                S_TABLE[stream_name] = S_CLOCK++;
                                                 Integration.set_store("s_table", S_TABLE);
                                                 Integration.set_store("s_clock", S_CLOCK);
                                         }
-                                        var inc = S_TABLE[n];
+                                        var inc = S_TABLE[stream_name];
                                 } else {
                                         var tok = this.pageviewID();
-                                        if (!(n in P_TABLE)) {
-                                                P_TABLE[n] = P_CLOCK++;
+                                        if (!(stream_name in P_TABLE)) {
+                                                P_TABLE[stream_name] = P_CLOCK++;
                                         }
-                                        var inc = P_TABLE[n];
+                                        var inc = P_TABLE[stream_name];
                                 }
-
                                 /* == printf("%s%04x", tok, inc) */ 
                                 return tok+(inc+0x10000).toString(16).slice(1);
                         },
-
                 };
         })();
 
@@ -378,7 +375,6 @@
                                         }
                                 }
                         }
-
                         /* TODO: InputBuffer flush goes here */
                 }
         };
