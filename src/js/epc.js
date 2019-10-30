@@ -55,12 +55,12 @@
 
 var EPC = (function(
         __http_post,
-        __set_store,
-        __get_store,
-        __del_store,
-        __new_id,
+        __set_persistent,
+        __get_persistent,
+        __del_persistent,
+        __generate_id,
         __generate_uuid_v4,
-        __get_iso_8601_timestamp,
+        __generate_iso_8601_timestamp,
         __client_cannot_be_tracked,
         __input_buffer_enqueue
 ) 
@@ -249,7 +249,7 @@ var EPC = (function(
         function pageview_id() 
         {
                 if (!PAGEVIEW_ID) {
-                        PAGEVIEW_ID = __new_id(); 
+                        PAGEVIEW_ID = __generate_id(); 
                 }
                 return PAGEVIEW_ID; 
         }
@@ -275,7 +275,7 @@ var EPC = (function(
                          * for SESSION_ID, try to load 
                          * a value from persistent store.
                          */
-                        SESSION_ID = __get_store("sid");
+                        SESSION_ID = __get_persistent("sid");
 
                         if (!SESSION_ID) {
                                 /* 
@@ -286,8 +286,8 @@ var EPC = (function(
                                  * update to the persistence 
                                  * layer.
                                  */
-                                SESSION_ID = __new_id();
-                                __set_store("sid", SESSION_ID);
+                                SESSION_ID = __generate_id();
+                                __set_persistent("sid", SESSION_ID);
                         }
                 }
                 return SESSION_ID; 
@@ -318,8 +318,8 @@ var EPC = (function(
                          * try to load their values from the
                          * persistent store.
                          */
-                        ACTIVITY_COUNT = __get_store("ac");
-                        ACTIVITY_TABLE = __get_store("at");
+                        ACTIVITY_COUNT = __get_persistent("ac");
+                        ACTIVITY_TABLE = __get_persistent("at");
 
                         if (!ACTIVITY_COUNT || !ACTIVITY_TABLE) {
                                 /* 
@@ -332,8 +332,8 @@ var EPC = (function(
                                  */
                                 ACTIVITY_TABLE = {};
                                 ACTIVITY_COUNT = 1;
-                                __set_store("at", ACTIVITY_TABLE);
-                                __set_store("ac", ACTIVITY_COUNT);
+                                __set_persistent("at", ACTIVITY_TABLE);
+                                __set_persistent("ac", ACTIVITY_COUNT);
                         }
                 }
 
@@ -349,8 +349,8 @@ var EPC = (function(
                                  * to the persistent store.
                                  */
                                 ACTIVITY_TABLE[stream] = ACTIVITY_COUNT++;
-                                __set_store("at", ACTIVITY_TABLE);
-                                __set_store("ac", ACTIVITY_COUNT);
+                                __set_persistent("at", ACTIVITY_TABLE);
+                                __set_persistent("ac", ACTIVITY_COUNT);
                         }
 
                         /*
@@ -380,7 +380,7 @@ var EPC = (function(
                  * value for SESSION_ID.
                  */
                 SESSION_ID = null;
-                __del_store("sid"); 
+                __del_persistent("sid"); 
 
                 /* 
                  * A session refresh implies a 
@@ -398,8 +398,8 @@ var EPC = (function(
                  */
                 ACTIVITY_TABLE = null;
                 ACTIVITY_COUNT = null;
-                __del_store("at");
-                __del_store("ac");
+                __del_persistent("at");
+                __del_persistent("ac");
         }
 
         /**
@@ -427,7 +427,7 @@ var EPC = (function(
                          * persistent store. 
                          */
                         delete(ACTIVITY_TABLE[stream]);
-                        __set_store("at", ACTIVITY_TABLE);
+                        __set_persistent("at", ACTIVITY_TABLE);
                 }
         }
 
@@ -543,7 +543,7 @@ var EPC = (function(
                          * not alter the timestamp value. 
                          */
                         data.meta = { 
-                                dt: __get_iso_8601_timestamp(),
+                                dt: __generate_iso_8601_timestamp(),
                         };
                 }
 
@@ -554,7 +554,7 @@ var EPC = (function(
                          * yet configured, the event is
                          * enqueued to the input buffer. 
                          */
-                        __input_buffer_enqueue(stream, data);
+                        __input_buffer_enqueue([stream, data]);
                         return;
                 }
 
@@ -689,12 +689,12 @@ var EPC = (function(
         };
 })(
         Integration.http_post,
-        Integration.set_store,
-        Integration.get_store,
-        Integration.del_store,
-        Integration.new_id,
+        Integration.set_persistent,
+        Integration.get_persistent,
+        Integration.del_persistent,
+        Integration.generate_id,
         Integration.generate_uuid_v4,
-        Integration.get_iso_8601_timestamp,
+        Integration.generate_iso_8601_timestamp,
         Integration.client_cannot_be_tracked,
         Integration.input_buffer_enqueue,
         Integration.input_buffer_dequeue
