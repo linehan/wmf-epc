@@ -62,14 +62,13 @@ var EPC = (function(
         __get_iso_8601_timestamp,
         __client_cannot_be_tracked,
         __input_buffer_enqueue
-) {
+) 
+{
         /**********************************************************************
          * OUTPUT BUFFER 
          *
-         * Transmissions are buffered to follow a "burst" strategy.
-         * This strategy allows radio devices to remain in a sleep 
-         * state for longer, improving battery life.
-         *
+         * Stores events until they can be transmitted 
+         * via HTTP POST according to various rules.
          **********************************************************************/
 
         /* 
@@ -219,6 +218,9 @@ var EPC = (function(
 
         /**********************************************************************
          * ASSOCIATION CONTROLLER 
+         *
+         * Assigns identifiers corresponding to various 'scopes'
+         * such as 'pageview', 'session', and 'activity'.
          **********************************************************************/
 
         var PAGEVIEW_ID = null;
@@ -430,6 +432,9 @@ var EPC = (function(
 
         /********************************************************************** 
          * SAMPLING CONTROLLER 
+         *
+         * Determines whether the client is in or out of sample
+         * using an identifier-based sampling function.
          **********************************************************************/
 
         /**
@@ -452,7 +457,10 @@ var EPC = (function(
         }
 
         /********************************************************************** 
-         * PUBLIC API 
+         * PUBLIC INTERFACE
+         *
+         * Allows a caller to provide stream configuration 
+         * data and to log events. 
          **********************************************************************/
 
         var CONFIG = {};
@@ -585,15 +593,15 @@ var EPC = (function(
                 }
 
                 if (__client_cannot_be_tracked()) {
-                        /* 
-                         * [3.1] 
-                         * If the specified stream is 
-                         * not configured as private,
-                         * it shall receive no events
-                         * when the client has signaled
-                         * that they shall not be tracked. 
-                         */
                         if (CONFIG[stream].is_private !== true) {
+                                /* 
+                                 * [3.1] 
+                                 * If the specified stream is 
+                                 * not configured as private,
+                                 * it shall receive no events
+                                 * when the client has signaled
+                                 * that they shall not be tracked. 
+                                 */
                                 return;
                         }
                 }
@@ -617,11 +625,10 @@ var EPC = (function(
                  * to the stream's configured
                  * scope. 
                  */
-                var scope_id;
                 if (CONFIG[stream].scope === "session") {
-                        scope_id = session_id();
+                        var scope_id = session_id();
                 } else {
-                        scope_id = pageview_id();
+                        var scope_id = pageview_id();
                 }
 
                 if (in_sample(scope_id, CONFIG[stream].sample)) {
@@ -663,7 +670,7 @@ var EPC = (function(
                                 data.activity_id = activity_id(stream, scope_id); 
                         }
 
-                        /* object = InstrumentationModule.process(stream, object); */
+                        /* data = InstrumentationModule.process(stream, data); */
 
                         /*
                          * [5.4] 
