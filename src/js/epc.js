@@ -52,6 +52,7 @@
  *     NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  *     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 var EPC = (function(
         __http_post,
         __set_store,
@@ -431,10 +432,10 @@ var EPC = (function(
         }
 
         /********************************************************************** 
-         * SAMPLING CONTROLLER 
-         *
-         * Determines whether the client is in or out of sample
-         * using an identifier-based sampling function.
+         * SAMPLING CONTROLLER  
+	 * 			
+	 * Determines whether the client is in- or out-sample using  
+         * an identifier-based sampling function.
          **********************************************************************/
 
         /**
