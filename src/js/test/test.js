@@ -7,7 +7,7 @@ window.onload = function()
                         stream_name: "clicker",
                         $schema: "click_type_schema",
                         sample: {
-                                one_out_of_every: 1,
+                                one_in_every: 1,
                         },
                 },
         });

@@ -344,7 +344,7 @@ var EPC = (function(
                         return true;
                 } 
                 
-                return rand % sample_config.one_in_every === 0;
+                return (rand % sample_config.one_in_every) === 0;
         }
 
         /**********************************************************************
@@ -496,7 +496,7 @@ var EPC = (function(
                         scope_id = pageview_id();
                 }
 
-                if (in_sample(scope_id, CONFIG[stream_name].sampling)) {
+                if (in_sample(scope_id, CONFIG[stream_name].sample)) {
                         /*
                          * [5a] An event shall be processed only if its 
                          * stream is in-sample for this particular 
