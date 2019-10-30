@@ -62,7 +62,8 @@ var EPC = (function(
         __generate_uuid_v4,
         __generate_iso_8601_timestamp,
         __client_cannot_be_tracked,
-        __input_buffer_enqueue
+        __input_buffer_enqueue,
+        __input_buffer_dequeue
 ) 
 {
         /**********************************************************************
@@ -176,7 +177,7 @@ var EPC = (function(
                         __http_post(url, body); 
                         /* 
                          * Since we just woke the device's
-                         * radio by calling http_post(), we
+                         * radio by calling __http_post(), 
                          * might as well flush the buffer.
                          */
                         send_all_scheduled();
@@ -500,9 +501,7 @@ var EPC = (function(
                  * stream to those streams it should 
                  * copy events to.
                  */
-                COPIED = {};
-
-                for (var x in CONFIG) {
+                for (var x in config) {
                         COPIED[x] = [];
                         for (var y in CONFIG) {
                                 if (y.indexOf(x+".") === 0) {
