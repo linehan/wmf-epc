@@ -7,7 +7,7 @@ var Integration = (function()
         function get_store( key ) 
         {
                 var data = window.localStorage.getItem(key);
-                return ( data ) ? JSON.parse( data ) : {}; 
+                return ( data ) ? JSON.parse( data ) : null; 
         }
 
         function set_store( key, val ) 
