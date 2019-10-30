@@ -42,222 +42,6 @@ import java.util.HashMap;
 
 class EPC
 {
-        Map<String, Object>            S           = new HashMap<String, Object>();
-        Map<String, List<String>>      C           = new HashMap<String, List<String>>();
-        LinkedList<Object[]> InputBuffer = new LinkedList<Object[]>();
-
-        private void EPC(void)
-        {
-        }
-
-        public void event(String name, Object... arg) throws RuntimeException 
-        {
-                if (!S.containsKey(n)) {
-                        /*
-                         * Events for (as-yet) unconfigured streams are
-                         * placed on the InputBuffer
-                         */
-                        InputBuffer.add(new Object[]{ n, arg });
-                        return;
-                }
-
-                if (S.get(n).get("is_available") === false) {
-                        /*
-                         * The stream is configured as unavailable,
-                         * and will not receive events.
-                         */
-                        return;
-                }
-
-                /*
-                 * (1) AssociationController
-                 */
-
-                if (!S.get(n).get("scope").equals("session")) {
-                        S.get(n).put("scope", "pageview");
-                        String sampleID = AssociationController.pageviewID();
-                } else {
-                        String sampleID = AssociationController.sessionID();
-                }
-
-                /*
-                 * (2) SamplingController 
-                 */
-
-                if (Sampling.in_sample(sampleID, S.get(n).get("sampling"))) {
-
-                        /*
-                         * (3) Other processing and instrumentation
-                         */
-
-                        JSONObject m = new JSONObject();
-                        JSONObject d = new JSONObject();
-                        int i;
-
-                        for (i=0; i<arg.length; i+= 2) {
-                                try {
-                                        d.put(arg[i].toString(), arg[i+1]); 
-                                } catch (Exception e) {
-                                        /* arg[i+1] not a JSON-compat type */ 
-                                        throw new RuntimeException(e);
-                                }
-                        }
-
-                        d.put("session", AssociationController.sessionID());
-                        d.put("pageview", AssociationController.pageviewID());
-                        d.put("activity", AssociationController.activityID(n, S.get(n).get("scope")));
-
-                        m.put("id", Integration.get_UUID_v4());
-                        m.put("dt", Integration.get_iso_8601_timestamp());
-                        m.put("domain", Integration.get_wiki_domain());
-                        m.put("uri", Integration.get_wiki_uri());
-                        m.put("stream", n);
-
-                        d.put("meta", m);
-
-                        /* TODO InstrumentationModule.process(n, d) */
-
-                        OutputBuffer.schedule(S.get(n).get("url"), d.toString());
-                }
-
-                /*
-                 * Cascade
-                 */
-
-                for (String x : C.get(n)) {
-                        event(x, /*arguments*/);
-                }
-        }
-
-        public void streams(String json_string_config)
-        {
-                JSONObject json = new JSONObject(json_string_config);
-
-                /* FIXME: Clobbers; this isn't what we want */
-                S.putAll(Integration.jsonToMap(json));
-
-                C.clear();
-
-                for (String x : S.keySet()) {
-                        C.put(x, new List<String>());
-                        for (String y : S.keySet()) {
-                                if (y.startsWith(x+".")) {
-                                        C.get(x).add(y);
-                                }
-                        }
-                }
-                
-                /* TODO: Try inputbuffer flush here */
-	}
-
-        /**********************************************************************
-         * Handles the storage and book-keeping that controls the various
-         * pageview, session, and activity tokens.
-         *********************************************************************/
-        class AssociationController 
-        {
-                /**
-                 * Data used to build pageview IDs
-                 */
-                String               P_TOKEN = null;
-                Integer              P_CLOCK = 1;
-                Map<String, Integer> P_TABLE = null;
-
-                /**
-                 * Data used to build session IDs
-                 */
-                String               S_TOKEN = null;
-                Integer              S_CLOCK = 1;
-                Map<String, Integer> S_TABLE = null;
-
-                /* Called by whatever process detects session expiry */
-                public void begin_new_session()
-                {
-                        /* S_TOKEN diagnoses session reset */
-                        S_TOKEN = null;
-                        Integration.del_store("s_token"); // TODO: Write fn
-
-                        /* P_TOKEN diagnoses pageview reset */
-                        P_TOKEN = null;
-                }
-
-                public void begin_new_activity(String n)
-                {
-                        if (P_TABLE != null && P_TABLE.containsKey(n)) {
-                                P_TABLE.remove(n);
-                                /* If it was in P_TABLE, it's not in S_TABLE */
-                                return;
-                        }
-
-                        /* Make sure we have loaded from persistence */ 
-                        sessionID();
-
-                        if (S_TABLE.containsKey(n)) {
-                                S_TABLE.remove(n);
-                                Integration.set_store("s_table", S_TABLE);
-                        }
-                }
-
-                public String sessionID()
-                {
-                        /* A fresh execution will have SESSION set to null */
-                        if (S_TOKEN == null) {
-                                /* Try load SESSION from persistent store */ 
-                                S_TOKEN = Integration.get_store("s_token");
-                                S_TABLE = Integration.get_store("s_table");
-                                S_CLOCK = Integration.get_store("s_clock");
-
-                                /* If this fails... */ 
-                                if (S_TOKEN == null) { 
-                                        /* Generate a new session */
-                                        S_TOKEN = Integration.new_id();
-                                        S_TABLE = new HashMap<String, Integer>();
-                                        S_CLOCK = 1;
-                                        Integration.set_store("s_token", S_TOKEN);
-                                        Integration.set_store("s_table", S_TABLE);
-                                        Integration.set_store("s_clock", S_CLOCK);
-                                }
-                        }
-                        return S_TOKEN;
-                }
-
-                public String pageviewID()
-                {
-                        if (P_TOKEN == null) {
-                                P_TOKEN = Integration.new_id();
-                                P_TABLE = new HashMap<String, Integer>();
-                                P_CLOCK = 1;
-                        }
-                        return P_TOKEN;
-                }
-
-                public String activityID(String n, String scope_name)
-                {
-                        if (scope.equals("session")) {
-                                tok = sessionID();
-                                if (!S_TABLE.containsKey(n)) {
-                                        S_TABLE.put(n, S_CLOCK);
-                                        S_CLOCK = S_CLOCK + 1;
-                                        Integration.set_store("s_table", S_TABLE);
-                                        Integration.set_store("s_clock", S_CLOCK);
-                                }
-                                inc = S_TABLE.get(n);
-                        } else {
-                                tok = pageviewID();
-                                if (!P_TABLE.containsKey(n)) {
-                                        P_TABLE.put(n, P_CLOCK);
-                                        P_CLOCK = P_CLOCK + 1;
-                                }
-                                inc = P_TABLE.get(n);
-                        }
-
-                        return String.format("%s%04x", tok, inc);
-                }
-        }
-
-        /**********************************************************************
-         * Hmm
-         *********************************************************************/
         public class OutputBuffer
         { 
                 private static int WAIT_ITEMS = 10;
@@ -352,14 +136,229 @@ class EPC
         }
 
         /**********************************************************************
-         * Hmm
          *********************************************************************/
+        class AssociationController 
+        {
+                /**
+                 * Data used to build pageview IDs
+                 */
+                String               P_TOKEN = null;
+                Integer              P_CLOCK = 1;
+                Map<String, Integer> P_TABLE = null;
 
-        class Sampling 
+                /**
+                 * Data used to build session IDs
+                 */
+                String               S_TOKEN = null;
+                Integer              S_CLOCK = 1;
+                Map<String, Integer> S_TABLE = null;
+
+                /* Called by whatever process detects session expiry */
+                public void begin_new_session()
+                {
+                        /* S_TOKEN diagnoses session reset */
+                        S_TOKEN = null;
+                        Integration.del_store("s_token"); // TODO: Write fn
+
+                        /* P_TOKEN diagnoses pageview reset */
+                        P_TOKEN = null;
+                }
+
+                public void begin_new_activity(String stream_name)
+                {
+                        if (P_TABLE != null && P_TABLE.containsKey(n)) {
+                                P_TABLE.remove(n);
+                                /* If it was in P_TABLE, it's not in S_TABLE */
+                                return;
+                        }
+
+                        /* Make sure we have loaded from persistence */ 
+                        sessionID();
+
+                        if (S_TABLE.containsKey(n)) {
+                                S_TABLE.remove(n);
+                                Integration.set_store("s_table", S_TABLE);
+                        }
+                }
+
+                public String sessionID()
+                {
+                        /* A fresh execution will have SESSION set to null */
+                        if (S_TOKEN == null) {
+                                /* Try load SESSION from persistent store */ 
+                                S_TOKEN = Integration.get_store("s_token");
+                                S_TABLE = Integration.get_store("s_table");
+                                S_CLOCK = Integration.get_store("s_clock");
+
+                                /* If this fails... */ 
+                                if (S_TOKEN == null) { 
+                                        /* Generate a new session */
+                                        S_TOKEN = Integration.new_id();
+                                        S_TABLE = new HashMap<String, Integer>();
+                                        S_CLOCK = 1;
+                                        Integration.set_store("s_token", S_TOKEN);
+                                        Integration.set_store("s_table", S_TABLE);
+                                        Integration.set_store("s_clock", S_CLOCK);
+                                }
+                        }
+                        return S_TOKEN;
+                }
+
+                public String pageviewID()
+                {
+                        if (P_TOKEN == null) {
+                                P_TOKEN = Integration.new_id();
+                                P_TABLE = new HashMap<String, Integer>();
+                                P_CLOCK = 1;
+                        }
+                        return P_TOKEN;
+                }
+
+                public String activityID(String n, String scope_name)
+                {
+                        if (scope.equals("session")) {
+                                tok = sessionID();
+                                if (!S_TABLE.containsKey(n)) {
+                                        S_TABLE.put(n, S_CLOCK);
+                                        S_CLOCK = S_CLOCK + 1;
+                                        Integration.set_store("s_table", S_TABLE);
+                                        Integration.set_store("s_clock", S_CLOCK);
+                                }
+                                inc = S_TABLE.get(n);
+                        } else {
+                                tok = pageviewID();
+                                if (!P_TABLE.containsKey(n)) {
+                                        P_TABLE.put(n, P_CLOCK);
+                                        P_CLOCK = P_CLOCK + 1;
+                                }
+                                inc = P_TABLE.get(n);
+                        }
+
+                        return String.format("%s%04x", tok, inc);
+                }
+        }
+
+        /**********************************************************************
+         *********************************************************************/
+        class SamplingController
         {
                 static boolean in_sample(String token, Object sampling_config)
                 {
                         return true;
                 }
         }
+
+        /**********************************************************************
+         *********************************************************************/
+
+        Map<String, Object>            CONFIG           = new HashMap<String, Object>();
+        Map<String, List<String>>      C           = new HashMap<String, List<String>>();
+        LinkedList<Object[]> InputBuffer = new LinkedList<Object[]>();
+
+        private void EPC(void)
+        {
+        }
+
+        public void log(String stream_name, Object... arg) throws RuntimeException 
+        {
+                /*
+                 * Multiple dispatch 
+                 */
+                for (String x : COPIES.get(stream_name)) {
+                        log(x, /*arguments*/);
+                }
+
+                if (!CONFIG.containsKey(stream_name)) {
+                        /*
+                         * Events for (as-yet) unconfigured streams are
+                         * placed on the InputBuffer
+                         */
+                        InputBuffer.add(new Object[]{ stream_name, arg });
+                        return;
+                }
+
+                if (CONFIG.get(stream_name).get("is_available") === false) {
+                        /*
+                         * The stream is configured as unavailable,
+                         * and will not receive events.
+                         */
+                        return;
+                }
+
+                /*
+                 * (1) AssociationController
+                 */
+
+                if (!CONFIG.get(stream_name).get("scope").equals("session")) {
+                        CONFIG.get(stream_name).put("scope", "pageview");
+                        String sampleID = AssociationController.pageviewID();
+                } else {
+                        String sampleID = AssociationController.sessionID();
+                }
+
+                /*
+                 * (2) SamplingController 
+                 */
+
+                if (SamplingController.in_sample(sampleID, CONFIG.get(stream_name).get("sampling"))) {
+
+                        /*
+                         * (3) Other processing and instrumentation
+                         */
+
+                        JSONObject meta = new JSONObject();
+                        JSONObject data = new JSONObject();
+                        int i;
+
+                        for (i=0; i<arg.length; i+= 2) {
+                                try {
+                                        data.put(arg[i].toString(), arg[i+1]); 
+                                } catch (Exception e) {
+                                        /* arg[i+1] not a JSON-compat type */ 
+                                        throw new RuntimeException(e);
+                                }
+                        }
+
+                        data.put("session", AssociationController.sessionID());
+                        data.put("pageview", AssociationController.pageviewID());
+                        data.put("activity", AssociationController.activityID(stream_name, CONFIG.get(stream_name).get("scope")));
+
+                        meta.put("id", Integration.get_UUID_v4());
+                        meta.put("dt", Integration.get_iso_8601_timestamp());
+                        meta.put("domain", Integration.get_wiki_domain());
+                        meta.put("uri", Integration.get_wiki_uri());
+                        meta.put("stream", stream_name);
+
+                        data.put("meta", meta);
+
+                        /* TODO InstrumentationModule.process(n, d) */
+
+                        OutputBuffer.schedule(CONFIG.get(stream_name).get("url"), data.toString());
+                }
+
+        }
+
+        public void configure(String json_string_config)
+        {
+                JSONObject json = new JSONObject(json_string_config);
+
+                /* FIXME: Clobbers; this isn't what we want */
+                CONFIG.putAll(Integration.jsonToMap(json));
+
+                COPIES.clear();
+
+                for (String x : CONFIG.keySet()) {
+                        COPIES.put(x, new List<String>());
+                        for (String y : CONFIG.keySet()) {
+                                if (y.startsWith(x+".")) {
+                                        COPIES.get(x).add(y);
+                                }
+                        }
+                }
+                
+                /* TODO: Try inputbuffer flush here */
+	}
+
+
+
 }

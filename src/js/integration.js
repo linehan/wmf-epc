@@ -82,7 +82,7 @@ var Integration = (function()
                         ( rnds[ 4 ] + 0x10000 ).toString( 16 ).slice( 1 );
         }
 
-        function generate_UUID_v4() 
+        function generate_uuid_v4() 
         {
                 return "ffffffff-ffff-ffff-ffff-ffffffffffff";
         }
@@ -131,12 +131,12 @@ var Integration = (function()
          * Input buffer 
          */
 
-        function input_buffer_append() 
+        function input_buffer_enqueue(x) 
         {
                 /* TODO */
         }
 
-        function input_buffer_pop()
+        function input_buffer_dequeue()
         {
                 /* TODO */
         }
@@ -147,7 +147,8 @@ var Integration = (function()
 
         function get_iso_8601_timestamp()
         {
-                return Date.toISOString();
+                var now = new Date();
+                return now.toISOString();
         }
 
         function client_cannot_be_tracked()
@@ -162,10 +163,10 @@ var Integration = (function()
                 "http_get":http_get,
                 "http_post":http_post,
                 "new_id":new_id,
-                "generate_UUID_v4":generate_UUID_v4,
+                "generate_uuid_v4":generate_uuid_v4,
                 "output_buffer_bind_events":output_buffer_bind_events,
-                "input_buffer_append":input_buffer_append,
-                "input_buffer_pop":input_buffer_pop,
+                "input_buffer_enqueue":input_buffer_enqueue,
+                "input_buffer_dequeue":input_buffer_dequeue,
                 "get_iso_8601_timestamp":get_iso_8601_timestamp,
                 "client_cannot_be_tracked":client_cannot_be_tracked,
         };
