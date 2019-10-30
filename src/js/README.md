@@ -11,18 +11,18 @@ ResourceLoader for the loading of stream configuration.
 - `void configure(Object stream_config)`
 
 ### Output buffer (private)
-- `void send_all_scheduled()`
 - `void send(string url, string body)`
 - `void schedule(string url, string body)`
+- `void send_all_scheduled()`
 - `void enable_sending()`
 - `void disable_sending()`
 
 ### Association controller (private)
-- `void begin_new_session()`
-- `void begin_new_activity(string stream_name)`
 - `string pageview_id()`
 - `string session_id()`
 - `string activity_id(string stream_name, string base_id)`
+- `void begin_new_session()`
+- `void begin_new_activity(string stream_name)`
 
 ### Sampling controller (private)
 - `bool in_sample(string random_id, Object sampling_logic)`
