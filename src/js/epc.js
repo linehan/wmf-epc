@@ -109,7 +109,7 @@ var EPC = (function(
         {
                 QUEUE.push([url, str]);
 
-                if (!ENABLED) {
+                if (ENABLED) {
                         if (QUEUE.length >= WAIT_ITEMS) {
                                 /* 
                                  * >= because we might have been 
@@ -130,7 +130,7 @@ var EPC = (function(
 
         function send(url, str) 
         {
-                if (!ENABLED) {
+                if (ENABLED) {
                         __http_post(url, str); 
                         /* 
                          * Since we just woke the device's
@@ -407,7 +407,7 @@ var EPC = (function(
                          * shall not alter the timestamp value.
                          */
                         data.meta = { 
-                                dt: __get_iso_8601_timestamp
+                                dt: __get_iso_8601_timestamp(),
                         };
                 }
 

@@ -159,7 +159,7 @@ var Integration = (function()
         return {
                 "get_store":get_store,
                 "set_store":set_store,
-                "del_store":del_store
+                "del_store":del_store,
                 "http_get":http_get,
                 "http_post":http_post,
                 "new_id":new_id,
