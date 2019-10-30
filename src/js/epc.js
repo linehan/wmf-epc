@@ -330,10 +330,10 @@ var EPC = (function(
                                  * and write the update to the 
                                  * persistent store.
                                  */
-                                ACTIVITY_TABLE = {};
                                 ACTIVITY_COUNT = 1;
-                                __set_persistent("at", ACTIVITY_TABLE);
+                                ACTIVITY_TABLE = {};
                                 __set_persistent("ac", ACTIVITY_COUNT);
+                                __set_persistent("at", ACTIVITY_TABLE);
                         }
                 }
 
@@ -349,8 +349,8 @@ var EPC = (function(
                                  * to the persistent store.
                                  */
                                 ACTIVITY_TABLE[stream] = ACTIVITY_COUNT++;
-                                __set_persistent("at", ACTIVITY_TABLE);
                                 __set_persistent("ac", ACTIVITY_COUNT);
+                                __set_persistent("at", ACTIVITY_TABLE);
                         }
 
                         /*
@@ -418,7 +418,7 @@ var EPC = (function(
                  * from the persistent store 
                  * (or generated).
                  */
-                activityID(); 
+                activity_id(); 
 
                 if (stream in ACTIVITY_TABLE) {
                         /*
