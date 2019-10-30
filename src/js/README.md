@@ -6,29 +6,28 @@ ResourceLoader for the loading of stream configuration.
 
 ## API Overview
 
-### Main
-#### Public
+### Main (public)
 - `void log(string stream_name, Object event_data)`
 - `void configure(Object stream_config)`
 
-### Output buffer
+### Output buffer (private)
 - `void send_all_scheduled()`
 - `void send(string url, string body)`
 - `void schedule(string url, string body)`
 - `void enable_sending()`
 - `void disable_sending()`
 
-### Association controller
+### Association controller (private)
 - `void begin_new_session()`
 - `void begin_new_activity(string stream_name)`
 - `string pageview_id()`
 - `string session_id()`
 - `string activity_id(string stream_name, string base_id)`
 
-### Sampling controller
+### Sampling controller (private)
 - `bool in_sample(string random_id, Object sampling_logic)`
 
-### Integrations 
+### Integrations (abstract)
 - `void http_post(string url, string body)`
 - `void input_buffer_enqueue(Object item)`
 - `Object input_buffer_dequeue()`
