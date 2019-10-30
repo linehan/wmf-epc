@@ -1,4 +1,4 @@
-# Wikimedia Event Platform Client Library - MediaWiki JavaScript
+# Event Platform Client Library - JavaScript
 
 Implements the Event Platform common client specification in
 JavaScript. Designed to be integrated with MediaWiki JS, using
@@ -6,36 +6,46 @@ ResourceLoader for the loading of stream configuration.
 
 ## API Overview
 
-### Callable interface (public)
+### Main
+#### Public
 - `void log(string stream_name, Object event_data)`
 - `void configure(Object stream_config)`
 
-### Output buffer (private)
+### Output buffer
+#### Private
 - `void send_all_scheduled()`
-- `void schedule(string url, string body)`
 - `void send(string url, string body)`
+#### Protected
+- `void schedule(string url, string body)`
 - `void enable_sending()`
 - `void disable_sending()`
 
-### Association controller (private)
+### Association controller
+#### Private
+- `void begin_new_session()`
+- `void begin_new_activity(string stream_name)`
+#### Protected
 - `string pageview_id()`
 - `string session_id()`
 - `string activity_id(string stream_name, string base_id)`
-- `void begin_new_session()`
-- `void begin_new_activity(string stream_name)`
 
-### Sampling controller (private)
+
+### Sampling controller
+#### Protected
 - `bool in_sample(string random_id, Object sampling_logic)`
 
-## Integrations 
-Things that must be provided during integration.
+### Integrations 
+#### I/O
 - `void http_post(string url, string body)`
+- `void input_buffer_enqueue(Object item)`
+- `Object input_buffer_dequeue()`
+#### Persistent storage
 - `void set_store(string key, Serializable value)`
 - `Object get_store(string key)`
 - `void del_store(string key)`
+#### Miscellaneous
 - `string new_id()`
 - `string generate_uuid_v4()`
 - `string get_iso_8601_timestamp()`
 - `bool client_cannot_be_tracked()`
-- `void input_buffer_enqueue(Object item)`
-- `Object input_buffer_dequeue()`
+`
