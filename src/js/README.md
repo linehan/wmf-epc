@@ -31,10 +31,10 @@ ResourceLoader for the loading of stream configuration.
 - `void http_post(string url, string body)`
 - `void input_buffer_enqueue(Object item)`
 - `Object input_buffer_dequeue()`
-- `void set_store(string key, Serializable value)`
-- `Object get_store(string key)`
-- `void del_store(string key)`
-- `string new_id()`
+- `void set_persistent(string key, Serializable value)`
+- `Object get_persistent(string key)`
+- `void del_persistent(string key)`
+- `string generate_id()`
 - `string generate_uuid_v4()`
-- `string get_iso_8601_timestamp()`
+- `string generate_iso_8601_timestamp()`
 - `bool client_cannot_be_tracked()`
