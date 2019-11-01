@@ -227,10 +227,10 @@ var EPC = (function(
         var PAGEVIEW_ID = null;
         var SESSION_ID = null;
         
-        /* Maps stream_name => activity # */
+        /* Maps stream_name to activity number  */
         var ACTIVITY_TABLE = null; 
 
-        /* Monotonically incr. activity counter */
+        /* Monotonically increasing next activity number */
         var ACTIVITY_COUNT = null; 
 
         /**
@@ -242,9 +242,7 @@ var EPC = (function(
          *
          * Uniformly-random 80-bit integer, represented 
          * as a 0-padded 20-character string of hexadecimal 
-         * digits, e.g.:
-         * 
-         *      "ffffffffffffffffffff",
+         * digits, e.g.: "ffffffffffffffffffff",
          */
         function pageview_id() 
         {
