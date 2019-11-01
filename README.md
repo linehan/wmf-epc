@@ -16,23 +16,37 @@ will be made available.
 
 ## API Overview
 
-### External interface - the EPC class
-- `EPC.init(void)`
-- `EPC.event(string streamName, map eventData)`
+```
+Main (public)
+    void log(string stream_name, Object event_data)
+    void configure(Object stream_config)
 
-### Internal interface - Stream
-- `Stream(JSONObject streamConfiguration)`
-- `Stream.get_scope(string streamName)` => `string`
-- `Stream.get_start(string streamName)` => `array of string`
-- `Stream.is_enabled(string streamName)` => `boolean`
-- `Stream.is_sampled(string streamName)` => `boolean`
+Output buffer (internal)
+    void send(string url, string body)
+    void schedule(string url, string body)
+    void send_all_scheduled()
+    void enable_sending()
+    void disable_sending()
 
-### Internal interface - Token
-- `Token.session(void)` => `string`
-- `Token.pageview(void)` => `string`
-- `Token.activity(string streamName, string scopeName)` => `string` or `null`
-- `Token.activity_reset(string streamName)`
+Association controller (internal)
+    string pageview_id()
+    string session_id()
+    string activity_id(string stream_name, string base_id)
+    void   begin_new_session()
+    void   begin_new_activity(string stream_name)
 
-### Internal interface - Output
-- `Output.send(string url, string postBodyContent)`
-- `Output.schedule(string url, string postBodyContent)`
+Sampling controller (internal)
+    bool in_sample(string random_id, Object sampling_logic)
+
+Integrations (abstract)
+    void   set_persistent(string key, Serializable value)
+    Object get_persistent(string key)
+    void   del_persistent(string key)
+    string generate_id()
+    string generate_uuid_v4()
+    string generate_iso_8601_timestamp()
+    bool   client_cannot_be_tracked()
+    void   input_buffer_enqueue(Object item)
+    Object input_buffer_dequeue()
+    void   http_post(string url, string body)
+```
