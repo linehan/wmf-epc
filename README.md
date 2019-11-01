@@ -28,7 +28,7 @@ Output buffer (internal)
     void enable_sending()
     void disable_sending()
 
-Association controller (private)
+Association controller (internal)
     string pageview_id()
     string session_id()
     string activity_id(string stream_name, string base_id)
