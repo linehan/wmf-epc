@@ -261,9 +261,7 @@ var EPC = (function(
          *
          * Uniformly-random 80-bit integer, represented 
          * as a 0-padded 20-character string of hexadecimal 
-         * digits, e.g.:
-         * 
-         *      "ffffffffffffffffffff",
+         * digits, e.g.: "ffffffffffffffffffff",
          */
         function session_id() 
         {
@@ -303,9 +301,7 @@ var EPC = (function(
          * Concatenation of either a pageview or session ID,
          * and a 16-bit integer (the activity sequence number)
          * represented as a 0-padded 4-character string of 
-         * hexadecimal digits, e.g.:
-         *
-         *      "ffffffffffffffffffff0123",
+         * hexadecimal digits, e.g.: "ffffffffffffffffffff0123",
          */
         function activity_id(stream, prefix) 
         {
