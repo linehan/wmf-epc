@@ -281,11 +281,11 @@ var EPC = (function(
                         if (!SESSION_ID) {
                                 /* 
                                  * If there is no value in
-                                 * the persistence layer,
+                                 * the persistent store,
                                  * generate a new value for 
                                  * SESSION_ID, and write the
-                                 * update to the persistence 
-                                 * layer.
+                                 * update to the persistent 
+                                 * store.
                                  */
                                 SESSION_ID = __generate_id();
                                 __set_persistent("sid", SESSION_ID);
@@ -658,8 +658,8 @@ var EPC = (function(
                          * stream's privacy configuration. 
                          */
                         if (CONFIG[stream].is_private !== true) {
-                                object.pageview_id = pageview_id();
-                                object.session_id  = session_id();
+                                data.pageview_id = pageview_id();
+                                data.session_id  = session_id();
                                 /* 
                                  * [5.3] 
                                  * If a stream will use an activity 
@@ -687,7 +687,7 @@ var EPC = (function(
                 "log":log,
         };
 })(
-        Integration.http_post,
+        Integration.http_post, 
         Integration.set_persistent,
         Integration.get_persistent,
         Integration.del_persistent,
