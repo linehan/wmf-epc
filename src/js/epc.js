@@ -1,5 +1,5 @@
 /*
- * Event Platform Client (EPC) 
+ * Event Platform Client (EPC)
  *
  *      _/\/\/\/\/\/\________________________________________/\/\_____
  *     _/\____________/\/\__/\/\____/\/\/\____/\/\/\/\____/\/\/\/\/\_ 
@@ -19,7 +19,7 @@
  *     in an ouput buffer where they are periodically bursted to a remote 
  *     endpoint via HTTP POST.
  *
- *     Designed for use with MediaWiki browser clients producing events to 
+ *     Designed for use with MediaWiki browser clients producing events to
  *     the EventGate intake service.
  *
  * AUTHORS
@@ -27,7 +27,7 @@
  *     Mikhail Popov <mpopov@wikimedia.org>
  *
  * LICENSE NOTICE
- *     Copyright (C) 2019 Wikimedia Foundation 
+ *     Copyright 2019 Wikimedia Foundation
  *
  *     Redistribution and use in source and binary forms, with or without
  *     modification, are permitted provided that the following conditions are
@@ -52,7 +52,6 @@
  *     NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  *     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 var EPC = (function(
         __http_post,
         __set_persistent,
