@@ -28,9 +28,6 @@ Sampling controller (internal)
     bool in_sample(string random_id, Object sampling_logic)
 
 Integrations (abstract)
-    void   http_post(string url, string body)
-    void   input_buffer_enqueue(Object item)
-    Object input_buffer_dequeue()
     void   set_persistent(string key, Serializable value)
     Object get_persistent(string key)
     void   del_persistent(string key)
@@ -38,6 +35,9 @@ Integrations (abstract)
     string generate_uuid_v4()
     string generate_iso_8601_timestamp()
     bool   client_cannot_be_tracked()
+    void   input_buffer_enqueue(Object item)
+    Object input_buffer_dequeue()
+    void   http_post(string url, string body)
 ```
 
 ## Supported MEP Event Stream Attributes
