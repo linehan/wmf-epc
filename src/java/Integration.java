@@ -40,6 +40,7 @@ import java.io.DataOutputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Random;
 
 /******************************************************************************
  * Collect functions that will be replaced or mapped to other platform-specific
@@ -47,23 +48,28 @@ import java.net.URL;
  ******************************************************************************/
 class Integration {
         public static String get_stream_config() {
-                return "{edit: {stream: \"edit\",scope: \"session\",sample: 0.06,active: true,url: \"/log\", schema_url:'foo.foo' }}";
+                return "{\"edit\":{\"scope\":\"session\",\"sample\":{\"rate\":0.06},\"destination\":\"https://pai-test.wmflabs.org/log\",\"$schema\":\"/edit/attempt-step/1.0.0\"}}";
+        }
+        
+        public static String generate_id() {
+                Random r = new Random();
+                String id = "";
+                for (int i = 0; i < 5; i++) {
+                        String("%040x", r.nextInt(65535));
+                }
+                return id;
         }
 
-        public static String get_wiki_uri() {
-                return "en";
-        }
-
-        public static String get_wiki_domain() {
-                return "wikipedia.org";
-        }
-
-        public static String get_UUID_v4() {
+        public static String generate_uuid_v4() {
                 return "ffffffff-ffff-ffff-ffff-ffffffffffff";
         }
 
-        public static String get_iso_8601_timestamp() {
+        public static String generate_iso_8601_timestamp() {
                 return "1997";
+        }
+        
+        public static boolean client_cannot_be_tracked() {
+                return false;
         }
 
         // HTTP POST request
@@ -101,16 +107,19 @@ class Integration {
                 System.out.println(response.toString());
         }
 
-        public static <T> void set_store(String key, T value) {
+        public static <T> void set_persistent(String key, T value) {
                 /* Do nothing */
                 return;
         }
 
-        public static <T> T get_store(String key) {
+        public static <T> T get_persistent(String key) {
                 /* Do nothing */
                 return null;
         }
-
+        public static <T> void del_persistent(String key) {
+                /* Do nothing */
+                return;
+        }
 
         public static Map<String, Object> jsonToMap(JSONObject json) throws JSONException {
                 Map<String, Object> retMap = new HashMap<String, Object>();

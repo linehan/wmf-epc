@@ -269,7 +269,7 @@ class EPC
                 public String pageview_id()
                 {
                         if (PAGEVIEW_ID == null) {
-                                PAGEVIEW_ID = Integration.new_id();
+                                PAGEVIEW_ID = Integration.generate_id();
                         }
                         return PAGEVIEW_ID;
                 }
@@ -293,7 +293,7 @@ class EPC
                                  * for SESSION_ID, try to load 
                                  * a value from persistent store.
                                  */
-                                SESSION_ID = Integration.get_store("sid");
+                                SESSION_ID = Integration.get_persistent("sid");
 
                                 if (SESSION_ID == null) { 
                                         /* 
@@ -304,8 +304,8 @@ class EPC
                                          * update to the persistent 
                                          * store.
                                          */
-                                        SESSION_ID = Integration.new_id();
-                                        Integration.set_store("sid", SESSION_ID);
+                                        SESSION_ID = Integration.generate_id();
+                                        Integration.set_persistent("sid", SESSION_ID);
                                 }
                         }
                         return SESSION_ID;
@@ -334,8 +334,8 @@ class EPC
                                  * try to load their values from the
                                  * persistent store.
                                  */
-                                ACTIVITY_COUNT = Integration.get_store("ac");
-                                ACTIVITY_TABLE = Integration.get_store("at");
+                                ACTIVITY_COUNT = Integration.get_persistent("ac");
+                                ACTIVITY_TABLE = Integration.get_persistent("at");
 
                                 if (!ACTIVITY_COUNT || !ACTIVITY_TABLE) {
                                         /* 
@@ -348,8 +348,8 @@ class EPC
                                          */
                                         ACTIVITY_COUNT = 1;
                                         ACTIVITY_TABLE = new HashMap<String, Integer>();
-                                        Integration.set_store("ac", ACTIVITY_COUNT);
-                                        Integration.set_store("at", ACTIVITY_TABLE);
+                                        Integration.set_persistent("ac", ACTIVITY_COUNT);
+                                        Integration.set_persistent("at", ACTIVITY_TABLE);
                                 }
                         }
 
@@ -366,8 +366,8 @@ class EPC
                                          */
                                         ACTIVITY_TABLE.put(stream, ACTIVITY_COUNT);
                                         ACTIVITY_COUNT = ACTIVITY_COUNT + 1;
-                                        Integration.set_store("ac", ACTIVITY_COUNT);
-                                        Integration.set_store("at", ACTIVITY_TABLE);
+                                        Integration.set_persistent("ac", ACTIVITY_COUNT);
+                                        Integration.set_persistent("at", ACTIVITY_TABLE);
                                 }
 
                                 /*
@@ -398,7 +398,7 @@ class EPC
                          * value for SESSION_ID.
                          */
                         SESSION_ID = null;
-                        Integration.del_store("sid"); 
+                        Integration.del_persistent("sid"); 
 
                         /* 
                          * A session refresh implies a 
@@ -416,8 +416,8 @@ class EPC
                          */
                         ACTIVITY_TABLE = null;
                         ACTIVITY_COUNT = null;
-                        Integration.del_store("at");
-                        Integration.del_store("ac");
+                        Integration.del_persistent("at");
+                        Integration.del_persistent("ac");
                 }
 
                 /**
@@ -445,7 +445,7 @@ class EPC
                                  * persistent store. 
                                  */
                                 ACTIVITY_TABLE.remove(stream);
-                                Integration.set_store("at", ACTIVITY_TABLE);
+                                Integration.set_persistent("at", ACTIVITY_TABLE);
                         }
                 }
         }
@@ -556,7 +556,7 @@ class EPC
                          * Subsequent invocations shall
                          * not alter the timestamp value. 
                          */
-                        String dt = Integration.get_iso_8601_timestamp();
+                        String dt = Integration.generate_iso_8601_timestamp();
 
                         JSONObject meta = new JSONObject();
                         JSONObject data = new JSONObject();
@@ -621,6 +621,9 @@ class EPC
                 }
 
                 if (Integration.client_cannot_be_tracked()) {
+                        /*
+                         * TODO: need to finalize in stream spec
+                         */
                         if (CONFIG.get(stream).get("is_private") !== true) {
                                 /* 
                                  * [3.1] 
@@ -676,7 +679,7 @@ class EPC
                          * streams which are in-sample.
                          */
                         JSONObject meta = data.get("meta");
-                        meta.put("id", Integration.get_UUID_v4());
+                        meta.put("id", Integration.generate_uuid_v4());
                         meta.put("stream", stream);
                         data.put("meta", meta);
                         data.put("$schema", CONFIG.get(stream).get("$schema"));
@@ -702,7 +705,7 @@ class EPC
 
                         /* TODO InstrumentationModule.process(n, d) */
 
-                        OutputBuffer.schedule(CONFIG.get(stream).get("url"), data.toString());
+                        OutputBuffer.schedule(CONFIG.get(stream).get("destination"), data.toString());
                 }
         }
 }
