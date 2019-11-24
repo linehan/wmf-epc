@@ -47,122 +47,123 @@ import java.util.Random;
  * functions.
  ******************************************************************************/
 class Integration {
-        public static String get_stream_config() {
-                return "{\"edit\":{\"scope\":\"session\",\"sample\":{\"rate\":0.06},\"destination\":\"https://pai-test.wmflabs.org/log\",\"$schema\":\"/edit/attempt-step/1.0.0\"}}";
+    public static String get_stream_config() {
+        return "{\"edit\":{\"scope\":\"session\",\"sample\":{\"rate\":0.06},\"destination\":\"https://pai-test.wmflabs.org/log\",\"$schema\":\"/edit/attempt-step/1.0.0\"}}";
+    }
+
+    public static String generate_id() {
+        Random r = new Random();
+        String id = "";
+        for (int i = 0; i < 5; i++) {
+            String("%040x", r.nextInt(65535));
         }
-        
-        public static String generate_id() {
-                Random r = new Random();
-                String id = "";
-                for (int i = 0; i < 5; i++) {
-                        String("%040x", r.nextInt(65535));
-                }
-                return id;
+        return id;
+    }
+
+    public static String generate_uuid_v4() {
+        return "ffffffff-ffff-ffff-ffff-ffffffffffff";
+    }
+
+    public static String generate_iso_8601_timestamp() {
+        return "1997";
+    }
+
+    public static boolean client_cannot_be_tracked() {
+        return false;
+    }
+
+    // HTTP POST request
+    public static void http_post(String url, String body) throws Exception {
+        URL obj = new URL(url);
+        HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+
+        // add reuqest header
+        con.setRequestMethod("POST");
+        // con.setRequestProperty("User-Agent", USER_AGENT);
+        con.setRequestProperty("Accept-Language", "en-US,en;q=0.5");
+
+        // Send post request
+        con.setDoOutput(true);
+        DataOutputStream wr = new DataOutputStream(con.getOutputStream());
+        wr.writeBytes(body);
+        wr.flush();
+        wr.close();
+
+        int responseCode = con.getResponseCode();
+        System.out.println("\nSending 'POST' request to URL : " + url);
+        System.out.println("Post body: " + body);
+        System.out.println("Response Code : " + responseCode);
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+        String inputLine;
+        StringBuffer response = new StringBuffer();
+
+        while ((inputLine = in.readLine()) != null) {
+            response.append(inputLine);
         }
+        in.close();
 
-        public static String generate_uuid_v4() {
-                return "ffffffff-ffff-ffff-ffff-ffffffffffff";
-        }
+        // print result
+        System.out.println(response.toString());
+    }
 
-        public static String generate_iso_8601_timestamp() {
-                return "1997";
-        }
-        
-        public static boolean client_cannot_be_tracked() {
-                return false;
-        }
+    public static <T> void set_persistent(String key, T value) {
+        /* Do nothing */
+        return;
+    }
 
-        // HTTP POST request
-        public static void http_post(String url, String body) throws Exception {
-                URL obj = new URL(url);
-                HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+    public static <T> T get_persistent(String key) {
+        /* Do nothing */
+        return null;
+    }
 
-                // add reuqest header
-                con.setRequestMethod("POST");
-                // con.setRequestProperty("User-Agent", USER_AGENT);
-                con.setRequestProperty("Accept-Language", "en-US,en;q=0.5");
+    public static <T> void del_persistent(String key) {
+        /* Do nothing */
+        return;
+    }
 
-                // Send post request
-                con.setDoOutput(true);
-                DataOutputStream wr = new DataOutputStream(con.getOutputStream());
-                wr.writeBytes(body);
-                wr.flush();
-                wr.close();
+    public static Map<String, Object> jsonToMap(JSONObject json) throws JSONException {
+        Map<String, Object> retMap = new HashMap<String, Object>();
 
-                int responseCode = con.getResponseCode();
-                System.out.println("\nSending 'POST' request to URL : " + url);
-                System.out.println("Post body: " + body);
-                System.out.println("Response Code : " + responseCode);
-
-                BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-                String inputLine;
-                StringBuffer response = new StringBuffer();
-
-                while ((inputLine = in.readLine()) != null) {
-                        response.append(inputLine);
-                }
-                in.close();
-
-                // print result
-                System.out.println(response.toString());
-        }
-
-        public static <T> void set_persistent(String key, T value) {
-                /* Do nothing */
-                return;
-        }
-
-        public static <T> T get_persistent(String key) {
-                /* Do nothing */
-                return null;
-        }
-        public static <T> void del_persistent(String key) {
-                /* Do nothing */
-                return;
-        }
-
-        public static Map<String, Object> jsonToMap(JSONObject json) throws JSONException {
-                Map<String, Object> retMap = new HashMap<String, Object>();
-
-                if (json != JSONObject.NULL) {
-                        retMap = toMap(json);
-                }
-
-                return retMap;
+        if (json != JSONObject.NULL) {
+            retMap = toMap(json);
         }
 
-        public static Map<String, Object> toMap(JSONObject object) throws JSONException {
-                Map<String, Object> map = new HashMap<String, Object>();
+        return retMap;
+    }
 
-                Iterator<String> keysItr = object.keys();
-                    
-                while (keysItr.hasNext()) {
-                        String key = keysItr.next();
-                        Object value = object.get(key);
+    public static Map<String, Object> toMap(JSONObject object) throws JSONException {
+        Map<String, Object> map = new HashMap<String, Object>();
 
-                        if (value instanceof JSONArray) {
-                                value = toList((JSONArray) value);
-                        } else if (value instanceof JSONObject) {
-                                value = toMap((JSONObject) value);
-                        }
-                        map.put(key, value);
-                }
-                return map;
+        Iterator<String> keysItr = object.keys();
+
+        while (keysItr.hasNext()) {
+            String key = keysItr.next();
+            Object value = object.get(key);
+
+            if (value instanceof JSONArray) {
+                value = toList((JSONArray) value);
+            } else if (value instanceof JSONObject) {
+                value = toMap((JSONObject) value);
+            }
+            map.put(key, value);
         }
+        return map;
+    }
 
-        public static List<Object> toList(JSONArray array) throws JSONException {
-                List<Object> list = new ArrayList<Object>();
-                        
-                for (int i = 0; i < array.length(); i++) {
-                        Object value = array.get(i);
+    public static List<Object> toList(JSONArray array) throws JSONException {
+        List<Object> list = new ArrayList<Object>();
 
-                        if (value instanceof JSONArray) {
-                                value = toList((JSONArray) value);
-                        } else if (value instanceof JSONObject) {
-                                value = toMap((JSONObject) value);
-                        }
-                        list.add(value);
-                }
-                return list;
+        for (int i = 0; i < array.length(); i++) {
+            Object value = array.get(i);
+
+            if (value instanceof JSONArray) {
+                value = toList((JSONArray) value);
+            } else if (value instanceof JSONObject) {
+                value = toMap((JSONObject) value);
+            }
+            list.add(value);
         }
+        return list;
+    }
 }
