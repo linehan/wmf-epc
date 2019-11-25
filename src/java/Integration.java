@@ -98,6 +98,8 @@ class Integration {
         wr.flush();
         wr.close();
 
+        System.out.println("ok.");
+
         int responseCode = con.getResponseCode();
         System.out.println("\nSending 'POST' request to URL : " + url);
         System.out.println("Post body: " + body);

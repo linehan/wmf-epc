@@ -247,7 +247,7 @@ public class EPC {
                  */
                 try {
                     System.out.print(body);
-                    //Integration.http_post(url, body);
+                    Integration.http_post(url, body);
                 } catch (Exception e) {
                     /*
                      * FIXME: How to handle?
