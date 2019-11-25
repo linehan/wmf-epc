@@ -631,6 +631,7 @@ public class EPC {
             data.put("$schema", CONFIG.getJSONObject(stream).getString("$schema"));
             data.put("pageview_id", AssociationController.pageview_id());
             data.put("session_id", AssociationController.session_id());
+            data.put("device_id", Integration.get_device_id());
 
             if (CONFIG.getJSONObject(stream).has("destination")) {
                 /*
