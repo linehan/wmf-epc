@@ -42,6 +42,15 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Random;
 
+import org.json.*;
+
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.List;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.ArrayList;
+
 /******************************************************************************
  * Collect functions that will be replaced or mapped to other platform-specific
  * functions.
@@ -55,7 +64,7 @@ class Integration {
         Random r = new Random();
         String id = "";
         for (int i = 0; i < 5; i++) {
-            String("%040x", r.nextInt(65535));
+            id += String.format("%04x", r.nextInt(65535));
         }
         return id;
     }

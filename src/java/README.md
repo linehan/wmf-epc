@@ -2,6 +2,19 @@
 
 Implements the Event Platform common client specification in Java. Designed to be integrated with Wikipedia Android app, downloading stream configuration from a remote endpoint.
 
+## Run test
+From the `src/java` directory of the repository, run:
+```make
+make run
+```
+After approximately 2 seconds you should see the test output
+```
+{"pageview_id":"1a54e30f31ad5bd32c1b","message":"hello, world!","session_id":"8d3d3dd46c0cd812dc98","$schema":"wmf.1.1","lucky-number":5,"meta":{"id":"ffffffff-ffff-ffff-ffff-ffffffffffff","dt":"1997","stream":"test"}}
+```
+
+To clean up the directory, run
+```make clean```
+
 ## API Overview
 ```
 Main (public)
@@ -37,7 +50,7 @@ Common integrations (abstract)
     void    input_buffer_enqueue(Object item)
     Object  input_buffer_dequeue()
     void    http_post(String url, String body)
-    
+
 Specific integrations (abstract)
     Map<String, Object> jsonToMap(JSONObject json)
     Map<String, Object> toMap(JSONObject object)

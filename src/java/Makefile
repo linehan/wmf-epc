@@ -3,10 +3,7 @@
 # is dependency between the classes.
 #
 SOURCES = \
-	Integration.java \
-	Output.java \
-	Token.java \
-	Stream.java \
+	Integration.java\
 	EPC.java \
 	Main.java
 
