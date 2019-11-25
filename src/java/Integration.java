@@ -56,6 +56,10 @@ import java.util.ArrayList;
  * functions.
  ******************************************************************************/
 class Integration {
+    public static String get_device_id() {
+        return "app install ID";
+    }
+
     public static String get_stream_config() {
         return "{\"edit\":{\"scope\":\"session\",\"sample\":{\"rate\":0.06},\"destination\":\"https://pai-test.wmflabs.org/log\",\"$schema\":\"/edit/attempt-step/1.0.0\"}}";
     }
