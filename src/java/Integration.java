@@ -35,21 +35,25 @@
  *     Mikhail Popov <mpopov@wikimedia.org>
  */
 
+import org.json.*;
+
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Random;
-
-import org.json.*;
-
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.List;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.TimeZone;
+import java.util.UUID;
 
 /******************************************************************************
  * Collect functions that will be replaced or mapped to other platform-specific
@@ -74,11 +78,18 @@ class Integration {
     }
 
     public static String generate_uuid_v4() {
-        return "ffffffff-ffff-ffff-ffff-ffffffffffff";
+        return UUID.randomUUID().toString();
     }
 
     public static String generate_iso_8601_timestamp() {
-        return "1997";
+        /**
+         * Replace w/ DateUtil.getIso8601LocalDateFormat from org.wikipedia.util
+         */
+        TimeZone tz = TimeZone.getTimeZone("UTC");
+        DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'");
+        df.setTimeZone(tz);
+        String iso8601 = df.format(new Date());
+        return iso8601;
     }
 
     public static boolean client_cannot_be_tracked() {
@@ -90,10 +101,10 @@ class Integration {
         URL obj = new URL(url);
         HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 
-        // add reuqest header
+        // add request header
         con.setRequestMethod("POST");
-        // con.setRequestProperty("User-Agent", USER_AGENT);
-        con.setRequestProperty("Accept-Language", "en-US,en;q=0.5");
+        con.setRequestProperty("User-Agent", "Wikimedia Product Analytics Infrastructure/Event Platform Client/Java 0.1");
+        con.setRequestProperty("Accept-Language", "en-US,en");
 
         // Send post request
         con.setDoOutput(true);
@@ -101,8 +112,6 @@ class Integration {
         wr.writeBytes(body);
         wr.flush();
         wr.close();
-
-        System.out.println("ok.");
 
         int responseCode = con.getResponseCode();
         System.out.println("\nSending 'POST' request to URL : " + url);
