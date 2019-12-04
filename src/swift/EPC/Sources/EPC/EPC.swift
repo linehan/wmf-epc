@@ -405,6 +405,8 @@ public class EPC: StreamManager {
         var data = data
         data["meta"] = meta
 
+        print("[EPC] Event for stream '\(stream)' logged with data:\n\(data.prettyPrintJSON)")
+
         if CONFIG == nil {
             Integration.shared.input_buffer_enqueue((stream, data))
             return
