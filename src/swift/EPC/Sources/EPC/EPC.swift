@@ -1,57 +1,57 @@
 /*
-* Event Platform Client (EPC)
-*
-*      _/\/\/\/\/\/\________________________________________/\/\_____
-*     _/\____________/\/\__/\/\____/\/\/\____/\/\/\/\____/\/\/\/\/\_
-*    _/\/\/\/\/\____/\/\__/\/\__/\/\/\/\/\__/\/\__/\/\____/\/\_____
-*   _/\/\____________/\/\/\____/\/\________/\/\__/\/\____/\/\_____
-*  _/\/\/\/\/\/\______/\________/\/\/\/\__/\/\__/\/\____/\/\/\___
-* ______________________________________________________________
-*      ___/\/\/\/\/\__/\/\____/\/\______________________________/\/\_____
-*     _/\/\__________/\/\______________/\/\/\____/\/\/\/\____/\/\/\/\/\_
-*    _/\/\__________/\/\____/\/\____/\/\/\/\/\__/\/\__/\/\____/\/\_____
-*   _/\/\__________/\/\____/\/\____/\/\________/\/\__/\/\____/\/\_____
-*  ___/\/\/\/\/\__/\/\/\__/\/\/\____/\/\/\/\__/\/\__/\/\____/\/\/\___
-* __________________________________________________________________
-*
-* DESCRIPTION
-*     Collects events in an input buffer, adds some metadata, places them in an
-*     ouput buffer where they are periodically bursted to a remote endpoint via
-*     HTTP POST.
-*
-*     Designed for use with Wikipedia iOS application producing events to the
-*     EventGate intake service.
-*
-* AUTHORS
-*     Mikhail Popov <mpopov@wikimedia.org>
-*     Jason Linehan <jlinehan@wikimedia.org>
-*
-* LICENSE NOTICE
-*     Copyright 2019 Wikimedia Foundation
-*
-*     Redistribution and use in source and binary forms, with or without
-*     modification, are permitted provided that the following conditions are
-*     met:
-*
-*     1. Redistributions of source code must retain the above copyright notice,
-*     this list of conditions and the following disclaimer.
-*
-*     2. Redistributions in binary form must reproduce the above copyright
-*     notice, this list of conditions and the following disclaimer in the
-*     documentation and/or other materials provided with the distribution.
-*
-*     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-*     IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-*     THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-*     PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-*     CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-*     EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-*     PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-*     PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-*     LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-*     NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-*     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+ * Event Platform Client (EPC)
+ *
+ *      _/\/\/\/\/\/\________________________________________/\/\_____
+ *     _/\____________/\/\__/\/\____/\/\/\____/\/\/\/\____/\/\/\/\/\_
+ *    _/\/\/\/\/\____/\/\__/\/\__/\/\/\/\/\__/\/\__/\/\____/\/\_____
+ *   _/\/\____________/\/\/\____/\/\________/\/\__/\/\____/\/\_____
+ *  _/\/\/\/\/\/\______/\________/\/\/\/\__/\/\__/\/\____/\/\/\___
+ * ______________________________________________________________
+ *      ___/\/\/\/\/\__/\/\____/\/\______________________________/\/\_____
+ *     _/\/\__________/\/\______________/\/\/\____/\/\/\/\____/\/\/\/\/\_
+ *    _/\/\__________/\/\____/\/\____/\/\/\/\/\__/\/\__/\/\____/\/\_____
+ *   _/\/\__________/\/\____/\/\____/\/\________/\/\__/\/\____/\/\_____
+ *  ___/\/\/\/\/\__/\/\/\__/\/\/\____/\/\/\/\__/\/\__/\/\____/\/\/\___
+ * __________________________________________________________________
+ *
+ * DESCRIPTION
+ *     Collects events in an input buffer, adds some metadata, places them in an
+ *     ouput buffer where they are periodically bursted to a remote endpoint via
+ *     HTTP POST.
+ *
+ *     Designed for use with Wikipedia iOS application producing events to the
+ *     EventGate intake service.
+ *
+ * AUTHORS
+ *     Mikhail Popov <mpopov@wikimedia.org>
+ *     Jason Linehan <jlinehan@wikimedia.org>
+ *
+ * LICENSE NOTICE
+ *     Copyright 2019 Wikimedia Foundation
+ *
+ *     Redistribution and use in source and binary forms, with or without
+ *     modification, are permitted provided that the following conditions are
+ *     met:
+ *
+ *     1. Redistributions of source code must retain the above copyright notice,
+ *     this list of conditions and the following disclaimer.
+ *
+ *     2. Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ *     IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *     THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *     PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ *     CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *     EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *     PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ *     PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ *     LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *     NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ *     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 import Foundation
 
@@ -87,7 +87,7 @@ public class EPC: StreamManager {
          * If another item is added to QUEUE during this time, reset the
          * countdown.
          */
-        private let WAIT_SEC: Int = 1 // Timer requires seconds, not ms
+        private let WAIT_SEC: Int = 20 // Timer requires seconds, not ms
 
         /**
          * When QUEUE.count exceeds this value TIMER becomes non-interruptable.
@@ -107,8 +107,8 @@ public class EPC: StreamManager {
          */
         private var QUEUE = [(url: String, body: String)]()
         /**
-        * Timeout controlling the HTTP request bursting.
-        */
+         * Timeout controlling the HTTP request bursting.
+         */
         private var TIMER: Timer?
 
         init() {
@@ -147,10 +147,10 @@ public class EPC: StreamManager {
                     need_timer = true
                 }
             } else {
+                TIMER?.invalidate()
                 need_timer = true
             }
             if need_timer {
-                print("Scheduling timer")
                 TIMER = Timer.scheduledTimer(
                     timeInterval: TimeInterval(WAIT_SEC),
                     target: self,
@@ -159,14 +159,12 @@ public class EPC: StreamManager {
                     repeats: true
                 )
             }
-
         }
 
         /**
          * Cancel the timer.
          */
         private func unschedule() -> Void {
-            print("Cancelling the timer")
             TIMER?.invalidate()
         }
 
@@ -176,7 +174,6 @@ public class EPC: StreamManager {
         @objc private func send_all_scheduled() -> Void {
             unschedule()
             if ENABLED {
-                print("Sending \(QUEUE.count) queued-up events")
                 /*
                  * All items on QUEUE are permanently removed.
                  */
@@ -204,7 +201,6 @@ public class EPC: StreamManager {
          *      - body: body of the HTTP POST request
          */
         public func schedule(_ url: String, _ body: String) -> Void {
-            print("Scheduling \(body) to be sent to \(url)")
             /*
              * The actual item enqueued is an array of length 2 holding the two
              * arguments. Item is enqueued whether or not sending is enabled.
@@ -234,9 +230,8 @@ public class EPC: StreamManager {
          *      - url: destination of the HTTP POST request
          *      - body: body of the HTTP POST request
          */
-        public func send(_ url: String, _ body: String) -> Void {
+        private func send(_ url: String, _ body: String) -> Void {
             if ENABLED {
-                print("Sending \(body) to \(url)")
                 Integration.shared.http_post(url, body)
             }
         }
@@ -370,11 +365,10 @@ public class EPC: StreamManager {
     }
 
     /**
-    * Called by Integration's `load_stream_config` after stream configuration has been downloaded
-    * and processed.
-    */
+     * Called by Integration's `load_stream_config` after stream configuration has been downloaded
+     * and processed.
+     */
     public func set_stream_config(_ config: [String : [String : Any]]) -> Void {
-        print("EPC obtained configuration (\(config.count) streams)")
         CONFIG = config
         /*
          * Figure out which streams can be cc'd (e.g. edit ~> edit.growth)
@@ -385,11 +379,6 @@ public class EPC: StreamManager {
                 COPIED[stream] = cc_streams
             }
         }
-        if COPIED.count > 0 {
-            print("Derivative streams (for the cc/multi-dispatch feature): \(COPIED.prettyPrintJSON)")
-        }
-        output_buffer.enable_sending()
-        print("Flushing buffer of events cached before config became available")
         if CONFIG != nil {
             var cached_event: (stream: String, data: [String: Any])? = Integration.shared.input_buffer_dequeue()
             while cached_event != nil {
@@ -417,7 +406,6 @@ public class EPC: StreamManager {
         data["meta"] = meta
 
         if CONFIG == nil {
-            print("Stream not initialized yet, remembering the following data for later: \(data.debugDescription)")
             Integration.shared.input_buffer_enqueue((stream, data))
             return
         } else {
@@ -426,12 +414,10 @@ public class EPC: StreamManager {
              * decorating the event and actually sending it.
              */
             if !(CONFIG!.keys.contains(stream)) {
-                print("There is no stream named '\(stream)' in the retrieved config, so the event goes poof")
                 return
             } else {
                 // CC'd other streams
                 if COPIED.keys.contains(stream) {
-                    print("Stream '\(stream)' has derivative streams, cc'ing")
                     for cc_stream in COPIED[stream]! {
                         log(cc_stream, data)
                     }
@@ -446,12 +432,14 @@ public class EPC: StreamManager {
              * TODO: finalize how we want to specify this in the stream spec
              */
             /* if !(CONFIG![stream_name]!["is_nonidentifiable"]!) {
-                return;
-            } */
+             return;
+             } */
             return
         }
 
-        print("Determining if event is in or out of sample based on stream scope")
+        /*
+         * Determining if event is in or out of sample based on stream scope
+         */
         let scope_id: String
         let scope: Any? = CONFIG![stream]!["scope"]
         if scope != nil {
@@ -483,8 +471,6 @@ public class EPC: StreamManager {
                 return
             }
         }
-
-        print("Decorating event with additional meta data")
 
         /*
          * meta.id is optional and should only be done in case the client is

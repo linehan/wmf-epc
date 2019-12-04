@@ -123,7 +123,6 @@ class Integration {
      * - Parameter delegate: who to give the downloaded stream configuration to
      */
     public func load_stream_config(url: String, delegate: StreamManager) -> Void {
-        print("Attempting to HTTP GET stream configs from endpoint at \(url)")
         var request = URLRequest(url: URL(string: url)!)
         request.httpMethod = "GET"
         request.setValue(get_user_agent(), forHTTPHeaderField: "User-Agent")
@@ -131,7 +130,6 @@ class Integration {
             data, response, error in
             if let response = response as? HTTPURLResponse, let data = data {
                 if response.statusCode == 200 || response.statusCode == 304 {
-                    print("Received stream configs from endpoint, processing")
                     let from_json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: [String: Any]]
                     if from_json != nil {
                         delegate.set_stream_config(from_json!)
@@ -156,7 +154,6 @@ class Integration {
     }
 
     private func http_req(url: String, body: String, method: String) {
-        print("Attempting to HTTP \(method) to \(url) with data: \(body)")
         var request = URLRequest(url: URL(string: url)!)
         let data = body.data(using: String.Encoding.utf8)
         request.httpMethod = method
