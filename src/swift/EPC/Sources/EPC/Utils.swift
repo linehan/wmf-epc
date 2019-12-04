@@ -36,8 +36,9 @@
  *     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * AUTHORS
- *     Jason Linehan <jlinehan@wikimedia.org>
  *     Mikhail Popov <mpopov@wikimedia.org>
+ *     Jason Linehan <jlinehan@wikimedia.org>
+ *
  */
 
 import Foundation
@@ -48,6 +49,7 @@ protocol StreamManager: AnyObject {
 
 protocol JSONStringConvertible {
     var jsonDescription: String { get }
+    var prettyPrintJSON: String { get }
 }
 
 extension Dictionary: JSONStringConvertible {
@@ -58,6 +60,16 @@ extension Dictionary: JSONStringConvertible {
     var jsonDescription: String {
         get {
             let jsonData = try? JSONSerialization.data(withJSONObject: self, options: [])
+            let jsonString = String(data: jsonData!, encoding: .utf8)!
+            return jsonString
+        }
+    }
+    var prettyPrintJSON: String {
+        get {
+            let jsonData = try? JSONSerialization.data(
+                withJSONObject: self,
+                options: [JSONSerialization.WritingOptions.prettyPrinted]
+            )
             let jsonString = String(data: jsonData!, encoding: .utf8)!
             return jsonString
         }
