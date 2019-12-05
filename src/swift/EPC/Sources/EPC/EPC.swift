@@ -401,11 +401,10 @@ public class EPC: StreamManager {
         } else {
             meta = [String: String]()
             meta["dt"] = Integration.shared.generate_iso_8601_timestamp()
+            print("[EPC] Event for stream '\(stream)' logged at \(meta["dt"]!) with data:\n\(data.prettyPrintJSON)")
         }
         var data = data
         data["meta"] = meta
-
-        print("[EPC] Event for stream '\(stream)' logged with data:\n\(data.prettyPrintJSON)")
 
         if CONFIG == nil {
             Integration.shared.input_buffer_enqueue((stream, data))
